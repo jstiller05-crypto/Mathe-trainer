@@ -1,36 +1,19 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "operation.h"
-#include "task_generator.h"
-#include "difficulty.h"
 #include <QPushButton>
 #include <QString>
-#include <cstdlib>
-#include <ctime>
 #include <QTimer>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , controller(Difficulty::Beginner)   // <- Controller wird hier mit Startwert erzeugt
 {
     ui->setupUi(this);
-    srand(time(nullptr));
-
     connect(ui->checkButton, &QPushButton::clicked, this, &MainWindow::onCheckButtonClicked);
-
-    displayNewTask();
-}
-
-void MainWindow::displayNewTask()
-{
-    currentTask = generateTask(Difficulty::Beginner);
-    QString text = QString("%1 %2 %3 = ?")
-                       .arg(currentTask.firstNumber)
-                       .arg(operationToSymbol(currentTask.operation))   // <- statt currentTask.operation direkt
-                       .arg(currentTask.secondNumber);
-    ui->taskLabel->setText(text);
-    ui->answerEdit->clear();
-    ui->feedbackLabel->setText("");
+    displayCurrentTask();
 }
 
 MainWindow::~MainWindow()
@@ -38,6 +21,19 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::displayCurrentTask()
+{
+    Task task = controller.getCurrentTask();   // <- fragt beim Controller nach, generiert selbst nichts
+
+    QString text = QString("%1 %2 %3 = ?")
+                       .arg(task.firstNumber)
+                       .arg(operationToSymbol(task.operation))
+                       .arg(task.secondNumber);
+
+    ui->taskLabel->setText(text);
+    ui->answerEdit->clear();
+    ui->feedbackLabel->setText("");
+}
 
 void MainWindow::onCheckButtonClicked()
 {
@@ -45,23 +41,24 @@ void MainWindow::onCheckButtonClicked()
     int answer = ui->answerEdit->text().toInt(&isNumber);
 
     if (!isNumber) {
+        qDebug() << "Invalid input, not a number";
         ui->feedbackLabel->setText("Please enter a number!");
         return;
     }
 
-    if (answer == currentTask.solution)
+    if (controller.checkAnswer(answer))       // <- fragt den Controller, statt selbst zu vergleichen
         ui->feedbackLabel->setText("Correct!");
     else
-        ui->feedbackLabel->setText(QString("Wrong. The answer was: %1").arg(currentTask.solution));
+        ui->feedbackLabel->setText(QString("Wrong. The answer was: %1").arg(controller.getCurrentTask().solution));
 
-    ui->checkButton->setEnabled(false);   // verhindert Mehrfach-Klicks während der Pause
+    ui->checkButton->setEnabled(false);
     ui->answerEdit->setEnabled(false);
 
-    // Nach 1500 Millisekunden (1,5 Sek.) wird die übergebene Funktion EINMALIG ausgeführt
     QTimer::singleShot(1500, this, [this]() {
-        displayNewTask();
+        controller.startNewTask();            // <- Controller erzeugt die neue Aufgabe
+        displayCurrentTask();                  // <- MainWindow zeigt sie nur noch an
         ui->checkButton->setEnabled(true);
         ui->answerEdit->setEnabled(true);
-        ui->answerEdit->setFocus();   // Cursor direkt wieder ins Eingabefeld
+        ui->answerEdit->setFocus();
     });
 }

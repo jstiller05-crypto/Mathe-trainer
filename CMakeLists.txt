@@ -17,6 +17,8 @@ qt_add_executable(mathe-trainer
     operation.h
     difficulty.h
     operation.cpp
+    session_controller.h
+    session_controller.cpp
 )
 
 target_link_libraries(mathe-trainer
