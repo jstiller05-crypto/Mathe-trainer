@@ -19,6 +19,7 @@ qt_add_executable(mathe-trainer
     operation.cpp
     session_controller.h
     session_controller.cpp
+    topic.h
 )
 
 target_link_libraries(mathe-trainer

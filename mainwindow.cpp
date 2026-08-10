@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "operation.h"
+#include "difficulty.h"
 #include <QPushButton>
 #include <QString>
 #include <QTimer>
@@ -9,10 +10,29 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , controller(Difficulty::Beginner)   // <- Controller wird hier mit Startwert erzeugt
+    , controller(Preset::Beginner)
 {
     ui->setupUi(this);
     connect(ui->checkButton, &QPushButton::clicked, this, &MainWindow::onCheckButtonClicked);
+
+    connect(ui->beginnerButton, &QPushButton::clicked, this, [this]() {
+        controller.setDifficultyLevel(Preset::Beginner);
+        controller.startNewTask();
+        displayCurrentTask();
+    });
+
+    connect(ui->middleButton, &QPushButton::clicked, this, [this]() {
+        controller.setDifficultyLevel(Preset::Intermediate);
+        controller.startNewTask();
+        displayCurrentTask();
+    });
+
+    connect(ui->advancedButton, &QPushButton::clicked, this, [this]() {
+        controller.setDifficultyLevel(Preset::Advanced);
+        controller.startNewTask();
+        displayCurrentTask();
+    });
+
     displayCurrentTask();
 }
 

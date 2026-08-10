@@ -1,10 +1,18 @@
 #ifndef DIFFICULTY_H
 #define DIFFICULTY_H
 
-enum class Difficulty {
-    Beginner,     // z.B. Klasse 3: nur + und -, Zahlen 1-10
-    Intermediate, // z.B. Klasse 6: + - *, Zahlen 1-20
-    Advanced      // z.B. Klasse 10: + - * Power, Zahlen 1-12
-};
+// Schwierigkeit ist einfach eine Zahl von 1 bis 100 -
+// je höher, desto anspruchsvoller die Aufgaben.
+using DifficultyLevel = int;
 
-#endif // DIFFICULTY_H
+// Ein "namespace" bündelt zusammengehörige Konstanten unter einem gemeinsamen Namen,
+// damit man z.B. "Preset::Beginner" schreibt statt nur "Beginner" (Verwechslungsgefahr vermeiden)
+namespace Preset {
+constexpr DifficultyLevel Beginner     = 1;    // ca. Klasse 3
+constexpr DifficultyLevel Elementary   = 25;   // ca. Klasse 5
+constexpr DifficultyLevel Intermediate = 50;   // ca. Klasse 7
+constexpr DifficultyLevel Advanced     = 75;   // ca. Klasse 9
+constexpr DifficultyLevel Expert       = 100;  // ca. Klasse 10+
+}
+
+#endif

@@ -2,19 +2,23 @@
 #include "task_generator.h"
 #include <QDebug>
 
-SessionController::SessionController(Difficulty difficulty)
-    : currentDifficulty(difficulty)
+// session_controller.cpp
+SessionController::SessionController(DifficultyLevel level)
+    : currentLevel(level)
 {
-    qDebug() << "SessionController created with difficulty:" << static_cast<int>(difficulty);
     startNewTask();
+}
+
+void SessionController::setDifficultyLevel(DifficultyLevel level)
+{
+    currentLevel = level;
+    qDebug() << "Difficulty level changed to:" << level;
 }
 
 void SessionController::startNewTask()
 {
-    currentTask = generateTask(currentDifficulty);
-    qDebug() << "New task:" << currentTask.firstNumber
-             << static_cast<int>(currentTask.operation)
-             << currentTask.secondNumber << "= " << currentTask.solution;
+    currentTask = generateTask(currentLevel);
+    // ... restlicher qDebug-Code bleibt gleich
 }
 
 Task SessionController::getCurrentTask() const

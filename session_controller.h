@@ -9,20 +9,17 @@
 class SessionController
 {
 public:
-    explicit SessionController(Difficulty difficulty = Difficulty::Beginner);
+    explicit SessionController(DifficultyLevel level = Preset::Beginner);
 
-    // Erzeugt eine neue Aufgabe und merkt sie sich intern
     void startNewTask();
-
-    // Gibt die aktuell aktive Aufgabe zurück, damit die UI sie anzeigen kann
     Task getCurrentTask() const;
-
-    // Prüft eine gegebene Antwort gegen die aktuelle Aufgabe
     bool checkAnswer(int answer) const;
+
+    void setDifficultyLevel(DifficultyLevel level);   // <- neu, für den späteren Regler
 
 private:
     Task currentTask;
-    Difficulty currentDifficulty;
+    DifficultyLevel currentLevel;
 };
 
 #endif // SESSION_CONTROLLER_H

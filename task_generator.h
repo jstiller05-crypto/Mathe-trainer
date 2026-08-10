@@ -3,7 +3,6 @@
 #include "task.h"
 #include "difficulty.h"
 
-// Ankündigung: es gibt eine Funktion, die eine neue Aufgabe erzeugt
-Task generateTask(Difficulty difficulty);
+Task generateTask(DifficultyLevel level);
 
-#endif // TASK_GENERATOR_H
+#endif

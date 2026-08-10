@@ -8,6 +8,13 @@
   <property name="windowTitle"><string>Mathe Trainer</string></property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <layout class="QHBoxLayout" name="difficultyLayout">
+      <item><widget class="QPushButton" name="beginnerButton"><property name="text"><string>Beginner</string></property></widget></item>
+      <item><widget class="QPushButton" name="middleButton"><property name="text"><string>Middle</string></property></widget></item>
+      <item><widget class="QPushButton" name="advancedButton"><property name="text"><string>Advanced</string></property></widget></item>
+     </layout>
+    </item>
     <item><widget class="QLabel" name="taskLabel"><property name="text"><string>Task</string></property></widget></item>
     <item><widget class="QLineEdit" name="answerEdit"/></item>
     <item><widget class="QPushButton" name="checkButton"><property name="text"><string>Check</string></property></widget></item>
