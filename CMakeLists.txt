@@ -31,6 +31,8 @@ qt_add_executable(mathe-trainer
     session_controller.cpp
     topic.h
     resources.qrc
+    sidebar_menu.h
+    sidebar_menu.cpp
 )
 
 target_link_libraries(mathe-trainer

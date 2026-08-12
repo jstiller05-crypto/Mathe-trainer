@@ -17,6 +17,7 @@
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
@@ -27,15 +28,16 @@ class Ui_MainWindow
 {
 public:
     QWidget *centralwidget;
-    QVBoxLayout *verticalLayout;
-    QHBoxLayout *difficultyLayout;
-    QPushButton *beginnerButton;
-    QPushButton *middleButton;
-    QPushButton *advancedButton;
+    QVBoxLayout *mainLayout;
+    QSpacerItem *topSpacer;
     QLabel *taskLabel;
+    QHBoxLayout *answerRow;
+    QSpacerItem *leftAnswerSpacer;
     QLineEdit *answerEdit;
     QPushButton *checkButton;
+    QSpacerItem *rightAnswerSpacer;
     QLabel *feedbackLabel;
+    QSpacerItem *bottomSpacer;
     QMenuBar *menubar;
     QStatusBar *statusbar;
 
@@ -43,55 +45,62 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(800, 600);
+        MainWindow->resize(900, 650);
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
-        verticalLayout = new QVBoxLayout(centralwidget);
-        verticalLayout->setObjectName("verticalLayout");
-        difficultyLayout = new QHBoxLayout();
-        difficultyLayout->setObjectName("difficultyLayout");
-        beginnerButton = new QPushButton(centralwidget);
-        beginnerButton->setObjectName("beginnerButton");
+        mainLayout = new QVBoxLayout(centralwidget);
+        mainLayout->setSpacing(24);
+        mainLayout->setObjectName("mainLayout");
+        mainLayout->setContentsMargins(60, 40, 60, 40);
+        topSpacer = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
 
-        difficultyLayout->addWidget(beginnerButton);
-
-        middleButton = new QPushButton(centralwidget);
-        middleButton->setObjectName("middleButton");
-
-        difficultyLayout->addWidget(middleButton);
-
-        advancedButton = new QPushButton(centralwidget);
-        advancedButton->setObjectName("advancedButton");
-
-        difficultyLayout->addWidget(advancedButton);
-
-
-        verticalLayout->addLayout(difficultyLayout);
+        mainLayout->addItem(topSpacer);
 
         taskLabel = new QLabel(centralwidget);
         taskLabel->setObjectName("taskLabel");
+        taskLabel->setAlignment(Qt::AlignCenter);
 
-        verticalLayout->addWidget(taskLabel);
+        mainLayout->addWidget(taskLabel);
+
+        answerRow = new QHBoxLayout();
+        answerRow->setObjectName("answerRow");
+        leftAnswerSpacer = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        answerRow->addItem(leftAnswerSpacer);
 
         answerEdit = new QLineEdit(centralwidget);
         answerEdit->setObjectName("answerEdit");
+        answerEdit->setAlignment(Qt::AlignCenter);
 
-        verticalLayout->addWidget(answerEdit);
+        answerRow->addWidget(answerEdit);
 
         checkButton = new QPushButton(centralwidget);
         checkButton->setObjectName("checkButton");
+        checkButton->setMaximumWidth(44);
 
-        verticalLayout->addWidget(checkButton);
+        answerRow->addWidget(checkButton);
+
+        rightAnswerSpacer = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        answerRow->addItem(rightAnswerSpacer);
+
+
+        mainLayout->addLayout(answerRow);
 
         feedbackLabel = new QLabel(centralwidget);
         feedbackLabel->setObjectName("feedbackLabel");
+        feedbackLabel->setAlignment(Qt::AlignCenter);
 
-        verticalLayout->addWidget(feedbackLabel);
+        mainLayout->addWidget(feedbackLabel);
+
+        bottomSpacer = new QSpacerItem(20, 60, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        mainLayout->addItem(bottomSpacer);
 
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
-        menubar->setGeometry(QRect(0, 0, 800, 17));
+        menubar->setGeometry(QRect(0, 0, 900, 17));
         MainWindow->setMenuBar(menubar);
         statusbar = new QStatusBar(MainWindow);
         statusbar->setObjectName("statusbar");
@@ -105,11 +114,8 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "Mathe Trainer", nullptr));
-        beginnerButton->setText(QCoreApplication::translate("MainWindow", "Beginner", nullptr));
-        middleButton->setText(QCoreApplication::translate("MainWindow", "Middle", nullptr));
-        advancedButton->setText(QCoreApplication::translate("MainWindow", "Advanced", nullptr));
         taskLabel->setText(QCoreApplication::translate("MainWindow", "Task", nullptr));
-        checkButton->setText(QCoreApplication::translate("MainWindow", "Check", nullptr));
+        checkButton->setText(QCoreApplication::translate("MainWindow", "\342\234\223", nullptr));
         feedbackLabel->setText(QString());
     } // retranslateUi
 
