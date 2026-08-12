@@ -11,6 +11,7 @@
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QMainWindow>
@@ -27,6 +28,10 @@ class Ui_MainWindow
 public:
     QWidget *centralwidget;
     QVBoxLayout *verticalLayout;
+    QHBoxLayout *difficultyLayout;
+    QPushButton *beginnerButton;
+    QPushButton *middleButton;
+    QPushButton *advancedButton;
     QLabel *taskLabel;
     QLineEdit *answerEdit;
     QPushButton *checkButton;
@@ -43,6 +48,26 @@ public:
         centralwidget->setObjectName("centralwidget");
         verticalLayout = new QVBoxLayout(centralwidget);
         verticalLayout->setObjectName("verticalLayout");
+        difficultyLayout = new QHBoxLayout();
+        difficultyLayout->setObjectName("difficultyLayout");
+        beginnerButton = new QPushButton(centralwidget);
+        beginnerButton->setObjectName("beginnerButton");
+
+        difficultyLayout->addWidget(beginnerButton);
+
+        middleButton = new QPushButton(centralwidget);
+        middleButton->setObjectName("middleButton");
+
+        difficultyLayout->addWidget(middleButton);
+
+        advancedButton = new QPushButton(centralwidget);
+        advancedButton->setObjectName("advancedButton");
+
+        difficultyLayout->addWidget(advancedButton);
+
+
+        verticalLayout->addLayout(difficultyLayout);
+
         taskLabel = new QLabel(centralwidget);
         taskLabel->setObjectName("taskLabel");
 
@@ -80,6 +105,9 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "Mathe Trainer", nullptr));
+        beginnerButton->setText(QCoreApplication::translate("MainWindow", "Beginner", nullptr));
+        middleButton->setText(QCoreApplication::translate("MainWindow", "Middle", nullptr));
+        advancedButton->setText(QCoreApplication::translate("MainWindow", "Advanced", nullptr));
         taskLabel->setText(QCoreApplication::translate("MainWindow", "Task", nullptr));
         checkButton->setText(QCoreApplication::translate("MainWindow", "Check", nullptr));
         feedbackLabel->setText(QString());

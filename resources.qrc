@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/icons/app.ico</file>
+        <file>resources/fonts/Inter_24pt-Regular.ttf</file>
+    </qresource>
+</RCC>

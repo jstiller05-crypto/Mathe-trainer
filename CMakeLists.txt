@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.19)
 project(mathe-trainer LANGUAGES CXX)
 
+cmake_minimum_required(VERSION 3.19)
+project(mathe-trainer LANGUAGES CXX)
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+qt_standard_project_setup()
+
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 
 qt_standard_project_setup()
@@ -20,6 +30,7 @@ qt_add_executable(mathe-trainer
     session_controller.h
     session_controller.cpp
     topic.h
+    resources.qrc
 )
 
 target_link_libraries(mathe-trainer

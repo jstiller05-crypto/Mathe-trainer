@@ -6,6 +6,8 @@
 #include <QString>
 #include <QTimer>
 #include <QDebug>
+#include <QGuiApplication>
+#include <QStyleHints>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,6 +15,34 @@ MainWindow::MainWindow(QWidget *parent)
     , controller(Preset::Beginner)
 {
     ui->setupUi(this);
+
+    bool isDarkMode = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+    QString accentColor = "#5B8DEF";
+
+    QString styleSheet = QString(R"(
+        QMainWindow {
+            background-color: %1;
+        }
+        QLabel#taskLabel {
+            font-size: 22pt;
+            color: %2;
+        }
+        QPushButton {
+            background-color: %3;
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: white;
+        }
+        QPushButton:hover {
+            background-color: %4;
+        }
+    )").arg(isDarkMode ? "#1E1E1E" : "#FAFAFA")
+                             .arg(isDarkMode ? "#FFFFFF" : "#1E1E1E")
+                             .arg(accentColor)
+                             .arg(accentColor);
+
+    setStyleSheet(styleSheet);
+
     connect(ui->checkButton, &QPushButton::clicked, this, &MainWindow::onCheckButtonClicked);
 
     connect(ui->beginnerButton, &QPushButton::clicked, this, [this]() {
@@ -43,14 +73,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::displayCurrentTask()
 {
-    Task task = controller.getCurrentTask();   // <- fragt beim Controller nach, generiert selbst nichts
-
-    QString text = QString("%1 %2 %3 = ?")
-                       .arg(task.firstNumber)
-                       .arg(operationToSymbol(task.operation))
-                       .arg(task.secondNumber);
-
-    ui->taskLabel->setText(text);
+    Task task = controller.getCurrentTask();
+    ui->taskLabel->setText(task.questionText);
     ui->answerEdit->clear();
     ui->feedbackLabel->setText("");
 }
@@ -66,7 +90,7 @@ void MainWindow::onCheckButtonClicked()
         return;
     }
 
-    if (controller.checkAnswer(answer))       // <- fragt den Controller, statt selbst zu vergleichen
+    if (controller.checkAnswer(answer))
         ui->feedbackLabel->setText("Correct!");
     else
         ui->feedbackLabel->setText(QString("Wrong. The answer was: %1").arg(controller.getCurrentTask().solution));
@@ -75,8 +99,8 @@ void MainWindow::onCheckButtonClicked()
     ui->answerEdit->setEnabled(false);
 
     QTimer::singleShot(1500, this, [this]() {
-        controller.startNewTask();            // <- Controller erzeugt die neue Aufgabe
-        displayCurrentTask();                  // <- MainWindow zeigt sie nur noch an
+        controller.startNewTask();
+        displayCurrentTask();
         ui->checkButton->setEnabled(true);
         ui->answerEdit->setEnabled(true);
         ui->answerEdit->setFocus();

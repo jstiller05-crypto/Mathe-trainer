@@ -1,62 +1,103 @@
 #include "task_generator.h"
 #include <cstdlib>
 #include <cmath>
+#include <QString>
 
-int solve(int first, int second, Operation operation)
+// --- Hilfsfunktion: bestimmt anhand des Levels, welches Thema drankommt ---
+Topic pickTopicForLevel(DifficultyLevel level)
 {
-    switch (operation) {
-    case Operation::Addition:       return first + second;
-    case Operation::Subtraction:    return first - second;
-    case Operation::Multiplication: return first * second;
-    case Operation::Power:          return static_cast<int>(std::pow(first, second));
-    }
-    return 0;
+    if (level <= 10) return Topic::BasicArithmetic;
+    if (level <= 20) return (rand() % 2 == 0) ? Topic::BasicArithmetic : Topic::UnitConversion;
+    if (level <= 30) return Topic::OrderOfOperations;
+    if (level <= 40) return Topic::NegativeNumbers;
+    if (level <= 50) return (rand() % 2 == 0) ? Topic::Percentage : Topic::Interest;
+    if (level <= 60) return Topic::Powers;
+    if (level <= 70) return Topic::Roots;
+    // ab 71: Mischung aus allem bisher Gelernten (typisch für "Abschluss"-Niveau)
+    Topic pool[] = { Topic::Percentage, Topic::Powers, Topic::Roots, Topic::NegativeNumbers };
+    return pool[rand() % 4];
 }
 
-// Bestimmt den maximalen Zahlenbereich abhängig vom Level.
-// Level 1 -> Zahlen bis 10, Level 100 -> Zahlen bis ca. 100
-int maxNumberForLevel(DifficultyLevel level)
+// --- Ein Generator PRO Thema - jeder erzeugt Text + Lösung selbst ---
+
+Task generateBasicArithmetic(DifficultyLevel level)
 {
-    return 10 + level;   // einfache lineare Skalierung, feinjustierbar
+    int maxNumber = 10 + level * 10;   // Kl.3 (Level ~5) -> ~60, Kl.4 (Level ~15) -> ~160
+    int first = rand() % maxNumber + 1;
+    int second = rand() % maxNumber + 1;
+    bool isAddition = (rand() % 2 == 0);
+
+    Task task;
+    task.topic = Topic::BasicArithmetic;
+    task.solution = isAddition ? (first + second) : (first - second);
+    task.questionText = QString("%1 %2 %3 = ?").arg(first).arg(isAddition ? "+" : "-").arg(second);
+    return task;
 }
 
-// Bestimmt, welche Operation bei diesem Level erlaubt ist -
-// je höher der Level, desto mehr/schwerere Operationen kommen dazu
-Operation pickOperationForLevel(DifficultyLevel level)
+Task generateOrderOfOperations(DifficultyLevel level)
 {
-    if (level < 20) {
-        // nur Addition/Subtraktion
-        return (rand() % 2 == 0) ? Operation::Addition : Operation::Subtraction;
-    } else if (level < 60) {
-        // + - *, gleichmäßig verteilt
-        int choice = rand() % 3;
-        if (choice == 0) return Operation::Addition;
-        if (choice == 1) return Operation::Subtraction;
-        return Operation::Multiplication;
-    } else {
-        // + - * ^, Potenzen erst ab hohem Level
-        int choice = rand() % 10;
-        if (choice < 3) return Operation::Addition;
-        if (choice < 6) return Operation::Subtraction;
-        if (choice < 9) return Operation::Multiplication;
-        return Operation::Power;   // nur 1 von 10 Fällen, kommt seltener vor
-    }
+    // z.B. 3 + 4 * 2 = ? -> testet "Punkt vor Strich"
+    int a = rand() % 10 + 1;
+    int b = rand() % 10 + 1;
+    int c = rand() % 10 + 1;
+
+    Task task;
+    task.topic = Topic::OrderOfOperations;
+    task.solution = a + (b * c);   // Punkt-vor-Strich fest einprogrammiert
+    task.questionText = QString("%1 + %2 × %3 = ?").arg(a).arg(b).arg(c);
+    return task;
 }
 
+Task generateNegativeNumbers(DifficultyLevel level)
+{
+    int a = rand() % 20 - 10;   // Bereich -10 bis +10
+    int b = rand() % 20 - 10;
+
+    Task task;
+    task.topic = Topic::NegativeNumbers;
+    task.solution = a + b;
+    task.questionText = QString("(%1) + (%2) = ?").arg(a).arg(b);
+    return task;
+}
+
+Task generatePercentage(DifficultyLevel level)
+{
+    int percent = (rand() % 10 + 1) * 10;   // 10, 20, ..., 100
+    int base = (rand() % 20 + 1) * 10;       // 10, 20, ..., 200
+
+    Task task;
+    task.topic = Topic::Percentage;
+    task.solution = (percent * base) / 100;
+    task.questionText = QString("%1% von %2 = ?").arg(percent).arg(base);
+    return task;
+}
+
+Task generatePowers(DifficultyLevel level)
+{
+    int base = rand() % 10 + 2;
+    int exponent = rand() % 3 + 2;   // 2 bis 4
+
+    Task task;
+    task.topic = Topic::Powers;
+    task.solution = static_cast<int>(std::pow(base, exponent));
+    task.questionText = QString("%1^%2 = ?").arg(base).arg(exponent);
+    return task;
+}
+
+// --- Die Haupt-Funktion: wählt Thema, ruft passenden Generator auf ---
 Task generateTask(DifficultyLevel level)
 {
-    Task task;
-    int maxNumber = maxNumberForLevel(level);
+    Topic topic = pickTopicForLevel(level);
 
-    task.operation = pickOperationForLevel(level);
-    task.firstNumber = rand() % maxNumber + 1;
-    task.secondNumber = rand() % maxNumber + 1;
-
-    // Sonderregel: bei Potenzen den Exponenten klein halten, egal wie hoch das Level ist
-    if (task.operation == Operation::Power) {
-        task.secondNumber = rand() % 3 + 2;   // Exponent 2 bis 4
+    switch (topic) {
+    case Topic::BasicArithmetic:    return generateBasicArithmetic(level);
+    case Topic::OrderOfOperations:  return generateOrderOfOperations(level);
+    case Topic::NegativeNumbers:    return generateNegativeNumbers(level);
+    case Topic::Percentage:         return generatePercentage(level);
+    case Topic::Powers:             return generatePowers(level);
+    default:
+        // Noch nicht implementierte Themen (Interest, Roots, UnitConversion)
+        // fallen vorerst auf BasicArithmetic zurück, bis sie ausgebaut sind
+        return generateBasicArithmetic(level);
     }
-
-    task.solution = solve(task.firstNumber, task.secondNumber, task.operation);
-    return task;
 }
