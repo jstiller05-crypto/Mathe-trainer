@@ -2,8 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QStackedWidget>
 #include "session_controller.h"
 #include "sidebar_menu.h"
+#include "task_view.h"
+#include "settings_view.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -17,17 +20,20 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-private slots:
-    void onCheckButtonClicked();
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
-    SessionController controller;   // <- ersetzt "Task currentTask"
-    void displayCurrentTask();       // <- umbenannt, zeigt nur noch an, generiert nicht mehr selbst
+    SessionController controller;
     SidebarMenu *sidebar;
-    int classToLevel(int schoolClass) const;   // rechnet Klassenstufe -> Difficulty-Level um
-protected:
-    void resizeEvent(QResizeEvent *event) override;
+    QStackedWidget *stack;
+    TaskView *taskView;
+    SettingsView *settingsView;
+
+    int classToLevel(int schoolClass) const;
+    void showNewTask();
+    void onAnswerSubmitted();
 };
 
 #endif

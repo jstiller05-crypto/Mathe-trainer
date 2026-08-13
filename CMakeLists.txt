@@ -33,6 +33,10 @@ qt_add_executable(mathe-trainer
     resources.qrc
     sidebar_menu.h
     sidebar_menu.cpp
+    task_view.h
+    task_view.cpp
+    settings_view.h
+    settings_view.cpp
 )
 
 target_link_libraries(mathe-trainer
