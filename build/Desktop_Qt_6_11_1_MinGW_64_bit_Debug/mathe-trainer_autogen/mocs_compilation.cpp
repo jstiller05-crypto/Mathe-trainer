@@ -2,4 +2,5 @@
 #include "EWIEGA46WW/moc_mainwindow.cpp"
 #include "EWIEGA46WW/moc_settings_view.cpp"
 #include "EWIEGA46WW/moc_sidebar_menu.cpp"
+#include "EWIEGA46WW/moc_symbol_menu.cpp"
 #include "EWIEGA46WW/moc_task_view.cpp"

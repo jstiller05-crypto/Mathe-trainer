@@ -7,6 +7,7 @@
 #include "sidebar_menu.h"
 #include "task_view.h"
 #include "settings_view.h"
+#include "symbol_menu.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -30,10 +31,13 @@ private:
     QStackedWidget *stack;
     TaskView *taskView;
     SettingsView *settingsView;
+    SymbolMenu *symbolMenu;
 
     int classToLevel(int schoolClass) const;
     void showNewTask();
     void onAnswerSubmitted();
+    void onSkipRequested();
+    void onContinueRequested();
 };
 
 #endif

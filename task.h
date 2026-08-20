@@ -1,14 +1,22 @@
 #ifndef TASK_H
 #define TASK_H
-#include <QString>
-#include "topic.h"
-#include "operation.h"
 
-// Ein "struct" - nur ein Behälter für zusammengehörige Daten, keine Logik
+#include <QString>
+#include <QVector>
+#include "topic.h"
+
+// Ein einzelnes Antwortfeld. Bei einfachen Kopfrechenaufgaben gibt's nur eins
+// (label bleibt leer), bei komplexeren Aufgaben (z.B. Dreieck) mehrere gleichzeitig.
+struct AnswerSlot {
+    QString label;          // Beschriftung über dem Feld, z.B. "Hypotenuse c" - leer bei einfachen Aufgaben
+    double expectedValue;    // die erwartete, richtige Lösung für GENAU dieses Feld
+};
+
 struct Task {
-    Topic topic;
-    QString questionText;   // z.B. "23 + 47 = ?" oder "15 % von 200 = ?"
-    int solution;
+    QString ruleName;
+    QString promptText;
+    QVector<AnswerSlot> answers;
+    bool autoAdvance = true;
 };
 
 #endif // TASK_H

@@ -7,6 +7,7 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 #include <QVector>
+#include <QString>
 
 class SidebarMenu : public QWidget
 {
@@ -20,7 +21,7 @@ public:
     void setBarWidth(int width);
 
 signals:
-    void classSelected(int schoolClass);
+    void categorySelected(const QString &category, const QString &subcategory);
     void settingsClicked();
 
 protected:
@@ -29,18 +30,26 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+    struct CategoryBlock {
+        QString fullName;
+        QPushButton *headerButton;
+        QWidget *subContainer;
+        bool subVisible = false;
+    };
+
     bool expanded = false;
     QPropertyAnimation *widthAnimation;
     QTimer *collapseTimer;
-    QVector<QPushButton*> classButtons;
-    QPushButton *studentButton;
+    QVBoxLayout *layout;
     QPushButton *settingsButton;
+    QVector<CategoryBlock> categoryBlocks;
 
     static constexpr int collapsedWidth = 60;
-    static constexpr int expandedWidth = 220;
+    static constexpr int expandedWidth = 240;
 
     void toggleExpanded();
-    void updateButtonLabels();
+    void updateLabels();
+    void buildCategoryTree();
 };
 
 #endif

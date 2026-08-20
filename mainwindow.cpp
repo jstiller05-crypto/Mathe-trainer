@@ -13,7 +13,6 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // --- Styling (bleibt gleich, wirkt weiterhin auf alle Views) ---
     bool isDarkMode = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
     QString accentColor = "#5B8DEF";
 
@@ -37,38 +36,53 @@ MainWindow::MainWindow(QWidget *parent)
 
     setStyleSheet(styleSheet);
 
-    // --- Views erzeugen, in einen Stack packen ---
     stack = new QStackedWidget(this);
     taskView = new TaskView(this);
     settingsView = new SettingsView(this);
 
-    stack->addWidget(taskView);       // Index 0
-    stack->addWidget(settingsView);    // Index 1
-    // spätere Views: einfach stack->addWidget(statisticsView) ergänzen
+    stack->addWidget(taskView);
+    stack->addWidget(settingsView);
 
     setCentralWidget(stack);
 
-    // --- Sidebar als Overlay über dem Stack ---
     sidebar = new SidebarMenu(stack);
     sidebar->move(0, 0);
     sidebar->resize(sidebar->width(), stack->height());
     sidebar->raise();
 
-    // --- Sidebar-Signale: MainWindow entscheidet, was passiert ---
-    connect(sidebar, &SidebarMenu::classSelected, this, [this](int schoolClass) {
+    symbolMenu = new SymbolMenu(stack);
+    symbolMenu->repositionAt(stack->width(), stack->height());
+    symbolMenu->raise();
+
+    connect(sidebar, &SidebarMenu::categorySelected, this, [this](const QString &category, const QString &subcategory) {
         stack->setCurrentWidget(taskView);
         sidebar->raise();
-        controller.setDifficultyLevel(classToLevel(schoolClass));
-        controller.startNewTask();
+        symbolMenu->raise();
+        qDebug() << "Category selected:" << category << "-" << subcategory;
+        controller.startNewTask();   // Generator unterscheidet noch nicht nach Kategorie - kommt mit arithmetic_generator
         showNewTask();
     });
 
     connect(sidebar, &SidebarMenu::settingsClicked, this, [this]() {
         stack->setCurrentWidget(settingsView);
         sidebar->raise();
+        symbolMenu->raise();
     });
-    // --- TaskView-Signal: MainWindow fragt beim Controller nach ---
+
+    connect(settingsView, &SettingsView::classSelected, this, [this](int schoolClass) {
+        stack->setCurrentWidget(taskView);
+        sidebar->raise();
+        symbolMenu->raise();
+        controller.setDifficultyLevel(classToLevel(schoolClass));
+        controller.startNewTask();
+        showNewTask();
+    });
+
     connect(taskView, &TaskView::answerSubmitted, this, &MainWindow::onAnswerSubmitted);
+    connect(taskView, &TaskView::symbolMenuToggled, symbolMenu, &SymbolMenu::toggleOpen);
+    connect(taskView, &TaskView::skipRequested, this, &MainWindow::onSkipRequested);
+    connect(taskView, &TaskView::continueRequested, this, &MainWindow::onContinueRequested);
+    connect(symbolMenu, &SymbolMenu::symbolSelected, taskView, &TaskView::insertSymbolAtFocus);
 
     showNewTask();
 }
@@ -85,38 +99,52 @@ int MainWindow::classToLevel(int schoolClass) const
 
 void MainWindow::showNewTask()
 {
-    taskView->showQuestion(controller.getCurrentTask().questionText);
+    taskView->showTask(controller.getCurrentTask());
+    taskView->setContinueButtonVisible(false);
 }
 
 void MainWindow::onAnswerSubmitted()
 {
-    bool isNumber;
-    int answer = taskView->currentAnswerText().toInt(&isNumber);
+    QVector<bool> correctness = controller.checkAnswers(taskView->currentAnswerTexts());
+    taskView->showAnswerColors(correctness);
 
-    if (!isNumber) {
-        taskView->showFeedback("Please enter a number!");
-        return;
-    }
-
-    if (controller.checkAnswer(answer))
-        taskView->showFeedback("Correct!");
-    else
-        taskView->showFeedback(QString("Wrong. The answer was: %1").arg(controller.getCurrentTask().solution));
-
+    bool allCorrect = std::all_of(correctness.begin(), correctness.end(), [](bool c) { return c; });
+    taskView->showFeedbackText(allCorrect ? "Correct!" : "Not quite right.");
     taskView->setInputEnabled(false);
 
-    QTimer::singleShot(1500, this, [this]() {
-        controller.startNewTask();
-        showNewTask();
-        taskView->setInputEnabled(true);
-        taskView->focusAnswerField();
-    });
+    bool autoAdvance = controller.getCurrentTask().autoAdvance;
+
+    if (autoAdvance) {
+        QTimer::singleShot(1500, this, [this]() {
+            controller.startNewTask();
+            showNewTask();
+            taskView->setInputEnabled(true);
+            taskView->focusFirstField();
+        });
+    } else {
+        taskView->setContinueButtonVisible(true);
+    }
+}
+
+void MainWindow::onSkipRequested()
+{
+    controller.startNewTask();
+    showNewTask();
+    taskView->setInputEnabled(true);
+    taskView->focusFirstField();
+}
+
+void MainWindow::onContinueRequested()
+{
+    controller.startNewTask();
+    showNewTask();
+    taskView->setInputEnabled(true);
+    taskView->focusFirstField();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    if (sidebar) {
-        sidebar->resize(sidebar->width(), centralWidget()->height());
-    }
+    if (sidebar) sidebar->resize(sidebar->width(), centralWidget()->height());
+    if (symbolMenu) symbolMenu->repositionAt(centralWidget()->width(), centralWidget()->height());
 }

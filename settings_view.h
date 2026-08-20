@@ -9,6 +9,9 @@ class SettingsView : public QWidget
 
 public:
     explicit SettingsView(QWidget *parent = nullptr);
+
+signals:
+    void classSelected(int schoolClass);
 };
 
 #endif

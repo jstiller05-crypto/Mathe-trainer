@@ -26,9 +26,18 @@ Task SessionController::getCurrentTask() const
     return currentTask;
 }
 
-bool SessionController::checkAnswer(int answer) const
+QVector<bool> SessionController::checkAnswers(const QVector<QString> &inputs) const
 {
-    bool correct = (answer == currentTask.solution);
-    qDebug() << "Answer given:" << answer << "| Expected:" << currentTask.solution << "| Correct:" << correct;
-    return answer == currentTask.solution;
+    QVector<bool> results;
+
+    for (int i = 0; i < currentTask.answers.size(); ++i) {
+        bool isNumber = false;
+        double given = (i < inputs.size()) ? inputs[i].toDouble(&isNumber) : 0.0;
+
+        // kleine Toleranz statt exaktem Vergleich - wichtig für Dezimalzahlen (Rundungsfehler)
+        bool correct = isNumber && qAbs(given - currentTask.answers[i].expectedValue) < 0.001;
+        results.append(correct);
+    }
+
+    return results;
 }

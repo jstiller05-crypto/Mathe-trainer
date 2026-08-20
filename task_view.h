@@ -5,9 +5,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QVector>
+#include "task.h"
 
-// Zeigt eine Aufgabe an und lässt den Nutzer eine Antwort eingeben.
-// Weiß NICHTS über SessionController, Difficulty oder wie eine Aufgabe entsteht.
 class TaskView : public QWidget
 {
     Q_OBJECT
@@ -15,20 +15,36 @@ class TaskView : public QWidget
 public:
     explicit TaskView(QWidget *parent = nullptr);
 
-    void showQuestion(const QString &questionText);
-    void showFeedback(const QString &feedbackText);
+    void showTask(const Task &task);
+    void showAnswerColors(const QVector<bool> &correctness);
+    void showFeedbackText(const QString &text);
     void setInputEnabled(bool enabled);
-    void focusAnswerField();
-    QString currentAnswerText() const;
+    void focusFirstField();
+    void setContinueButtonVisible(bool visible);
+    QVector<QString> currentAnswerTexts() const;
+    void insertSymbolAtFocus(const QString &symbol);
 
 signals:
-    void answerSubmitted();   // Nutzer hat Enter gedrückt oder auf Check geklickt
+    void answerSubmitted();
+    void symbolMenuToggled();
+    void skipRequested();
+    void continueRequested();
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    QLabel *taskLabel;
-    QLineEdit *answerEdit;
-    QPushButton *checkButton;
+    QLabel *promptLabel;
+    QWidget *answerRowWidget;
+    QVector<QLineEdit*> answerFields;
     QLabel *feedbackLabel;
+    QPushButton *checkButton;
+    QPushButton *symbolMenuButton;
+    QPushButton *skipButton;
+    QPushButton *continueButton;
+
+    void rebuildAnswerFields(const QVector<AnswerSlot> &answerSlots);
+    void focusNextField(QLineEdit *current);
 };
 
 #endif

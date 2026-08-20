@@ -13,7 +13,7 @@ public:
 
     void startNewTask();
     Task getCurrentTask() const;
-    bool checkAnswer(int answer) const;
+    QVector<bool> checkAnswers(const QVector<QString> &inputs) const;
 
     void setDifficultyLevel(DifficultyLevel level);   // <- neu, für den späteren Regler
 

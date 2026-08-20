@@ -37,6 +37,24 @@ qt_add_executable(mathe-trainer
     task_view.cpp
     settings_view.h
     settings_view.cpp
+    symbol_menu.h
+    symbol_menu.cpp
+
+
+
+    task_fragment.h
+    addition_subtraction_generator.h
+    addition_subtraction_generator.cpp
+    root_power_log_generator.h
+    root_power_log_generator.cpp
+    percent_mult_div_generator.h
+    percent_mult_div_generator.cpp
+    finance_generator.h
+    finance_generator.cpp
+    units_generator.h
+    units_generator.cpp
+    arithmetic_unit.h
+    arithmetic_unit.cpp
 )
 
 target_link_libraries(mathe-trainer
