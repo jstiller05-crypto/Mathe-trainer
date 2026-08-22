@@ -7,6 +7,7 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 #include <QVector>
+#include <QPair>
 #include <QString>
 
 class SidebarMenu : public QWidget
@@ -21,8 +22,9 @@ public:
     void setBarWidth(int width);
 
 signals:
-    void categorySelected(const QString &category, const QString &subcategory);
     void settingsClicked();
+    void mentalMathModeChanged(bool enabled);
+    void activeSelectionsChanged(const QVector<QPair<QString, QString>> &active);
 
 protected:
     void leaveEvent(QEvent *event) override;
@@ -42,7 +44,9 @@ private:
     QTimer *collapseTimer;
     QVBoxLayout *layout;
     QPushButton *settingsButton;
+    QPushButton *mentalMathButton;
     QVector<CategoryBlock> categoryBlocks;
+    QVector<QPair<QString, QString>> activeSelections;
 
     static constexpr int collapsedWidth = 60;
     static constexpr int expandedWidth = 240;

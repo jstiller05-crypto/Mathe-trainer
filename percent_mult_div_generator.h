@@ -5,7 +5,8 @@
 #include "task_fragment.h"
 #include "difficulty.h"
 
-Task generatePercentMultDivTask(DifficultyLevel level);
-TaskFragment generatePercentMultDivFragment(DifficultyLevel level);
+Task generateMultDivTask(DifficultyLevel level, bool mentalMath);
+Task generatePercentTask(DifficultyLevel level, bool mentalMath);
+TaskFragment generateMultDivFragment(DifficultyLevel level, bool mentalMath);
 
 #endif

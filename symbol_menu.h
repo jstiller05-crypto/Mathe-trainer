@@ -23,6 +23,8 @@ public:
     void repositionAt(int parentWidth, int parentHeight);
 
 signals:
+    void categorySelected(const QString &category, const QString &subcategory);
+    void settingsClicked();
     void symbolSelected(const QString &symbol);
 
 protected:
@@ -33,6 +35,7 @@ private:
     bool expanded = false;
     QPropertyAnimation *heightAnimation;
     QTimer *collapseTimer;
+    QPushButton *mentalMathButton;
     int lastParentWidth = 0;
     int lastParentHeight = 0;
 

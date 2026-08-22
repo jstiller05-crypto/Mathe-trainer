@@ -5,7 +5,7 @@
 #include "task_fragment.h"
 #include "difficulty.h"
 
-Task generateRootPowerLogTask(DifficultyLevel level);
-TaskFragment generateRootPowerLogFragment(DifficultyLevel level);
+Task generateRootPowerLogTask(DifficultyLevel level, bool mentalMath);
+TaskFragment generateRootPowerLogFragment(DifficultyLevel level, bool mentalMath);
 
 #endif

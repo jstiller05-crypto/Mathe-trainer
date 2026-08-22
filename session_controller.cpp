@@ -15,15 +15,33 @@ void SessionController::setDifficultyLevel(DifficultyLevel level)
     qDebug() << "Difficulty level changed to:" << level;
 }
 
+void SessionController::setMentalMathMode(bool enabled)
+{
+    mentalMathMode = enabled;
+    qDebug() << "[SessionController] Kopfrechnen-Modus gesetzt:" << enabled;
+}
+
+void SessionController::setActiveSelections(const QVector<QPair<QString, QString>> &selections)
+{
+    activeSelections = selections;
+    qDebug() << "[SessionController] Aktive Auswahl gesetzt:" << selections;
+}
+
 void SessionController::startNewTask()
 {
-    currentTask = generateTask(currentLevel);
-    // ... restlicher qDebug-Code bleibt gleich
+    currentTask = generateTask(currentLevel, activeSelections, mentalMathMode);
 }
 
 Task SessionController::getCurrentTask() const
 {
     return currentTask;
+}
+
+void SessionController::setCategory(const QString &category, const QString &subcategory)
+{
+    currentCategory = category;
+    currentSubcategory = subcategory;
+    qDebug() << "[SessionController] Kategorie geaendert:" << category << "-" << subcategory;
 }
 
 QVector<bool> SessionController::checkAnswers(const QVector<QString> &inputs) const

@@ -16,10 +16,17 @@ public:
     QVector<bool> checkAnswers(const QVector<QString> &inputs) const;
 
     void setDifficultyLevel(DifficultyLevel level);   // <- neu, für den späteren Regler
+    void setCategory(const QString &category, const QString &subcategory);
+    void setMentalMathMode(bool enabled);
+    void setActiveSelections(const QVector<QPair<QString, QString>> &selections);
 
 private:
     Task currentTask;
     DifficultyLevel currentLevel;
+    QString currentCategory = "Arithmetik";        // Startwert, damit es auch ohne Sidebar-Klick funktioniert
+    QString currentSubcategory = "Kopfrechenaufgaben";
+    QVector<QPair<QString, QString>> activeSelections = { { "Arithmetik", "Addition & Subtraktion" } };
+    bool mentalMathMode = true;
 };
 
 #endif // SESSION_CONTROLLER_H

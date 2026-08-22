@@ -1,5 +1,6 @@
 #include "sidebar_menu.h"
 #include <QMouseEvent>
+#include <QDebug>
 
 struct CategoryDefinition {
     QString name;
@@ -15,6 +16,18 @@ SidebarMenu::SidebarMenu(QWidget *parent)
     layout = new QVBoxLayout(this);
     layout->setSpacing(2);
     layout->setContentsMargins(8, 20, 8, 20);
+
+    mentalMathButton = new QPushButton("Σ Kopfrechnen", this);
+    mentalMathButton->setObjectName("mentalMathButton");
+    mentalMathButton->setCheckable(true);
+    mentalMathButton->setChecked(true);
+    mentalMathButton->installEventFilter(this);
+    layout->addWidget(mentalMathButton);
+
+    connect(mentalMathButton, &QPushButton::toggled, this, [this](bool checked) {
+        emit mentalMathModeChanged(checked);
+        qDebug() << "[Sidebar] Kopfrechnen-Modus:" << checked;
+    });
 
     buildCategoryTree();
 
@@ -62,15 +75,21 @@ SidebarMenu::SidebarMenu(QWidget *parent)
         QPushButton:disabled {
             color: rgba(255, 255, 255, 90);
         }
+        QPushButton#mentalMathButton:checked {
+            border: 1px solid #5B8DEF;
+            background-color: rgba(91, 141, 239, 40);
+        }
+        QPushButton#subCategoryButton:checked {
+            border: 1px solid #5B8DEF;
+            background-color: rgba(91, 141, 239, 40);
+        }
     )");
 }
 
 void SidebarMenu::buildCategoryTree()
 {
-    // Baumstruktur - nur "Arithmetik" ist aktuell funktional (enabled = true),
-    // der Rest steht schon als Geruest da (Roadmap: [[mathe-lern-app-roadmap]])
     QVector<CategoryDefinition> categories = {
-        { "Arithmetik", { "Kopfrechenaufgaben", "Finanzrechnung", "Bruch-/Prozentrechnung", "Wurzel/Potenz/Logarithmus", "Größen-/Einheiten-Umrechnung", "Rundung/Überschlag" }, true },
+        { "Arithmetik", { "Addition & Subtraktion", "Bruch-/Prozentrechnung", "Wurzel/Potenz/Logarithmus", "Finanzen & Einheiten" }, true },
         { "Trigonometrie", { "Kopfrechenaufgaben", "Winkelberechnung", "Seitenberechnung", "Dreiecksberechnung", "Sinus-/Kosinussatz", "Einheitskreis" }, false },
         { "Geometrie", { "Kopfrechenaufgaben", "Volumenberechnung", "Flächeninhalt", "Mantel/Oberfläche", "Umfang", "Ähnlichkeit/Maßstab", "Koordinatengeometrie" }, false },
         { "Algebra", { "Lineare Funktionen", "Parabeln", "Exponentielle Funktionen", "Gleichungen lösen", "Ungleichungen", "Lineare Gleichungssysteme" }, false },
@@ -96,11 +115,25 @@ void SidebarMenu::buildCategoryTree()
             QPushButton *subButton = new QPushButton(sub, block.subContainer);
             subButton->setObjectName("subCategoryButton");
             subButton->setEnabled(def.enabled);
+            subButton->setCheckable(true);
+
             QString categoryName = def.name;
-            connect(subButton, &QPushButton::clicked, this, [this, categoryName, sub]() {
-                emit categorySelected(categoryName, sub);
+            connect(subButton, &QPushButton::toggled, this, [this, categoryName, sub](bool checked) {
+                QPair<QString, QString> key(categoryName, sub);
+                if (checked) {
+                    if (!activeSelections.contains(key)) activeSelections.append(key);
+                } else {
+                    activeSelections.removeAll(key);
+                }
+                emit activeSelectionsChanged(activeSelections);
+                qDebug() << "[Sidebar] Aktive Auswahl:" << activeSelections;
             });
+
             subLayout->addWidget(subButton);
+
+            if (def.name == "Arithmetik" && sub == "Addition & Subtraktion") {
+                subButton->setChecked(true);
+            }
         }
 
         block.subContainer->setVisible(false);
@@ -108,7 +141,6 @@ void SidebarMenu::buildCategoryTree()
 
         categoryBlocks.append(block);
 
-        // Index NACH dem Anhaengen holen, damit der Zugriff in der Lambda stabil bleibt
         int blockIndex = categoryBlocks.size() - 1;
         connect(block.headerButton, &QPushButton::clicked, this, [this, blockIndex]() {
             CategoryBlock &b = categoryBlocks[blockIndex];

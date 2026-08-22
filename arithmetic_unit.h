@@ -3,9 +3,8 @@
 
 #include "task.h"
 #include "difficulty.h"
+#include <QStringList>
 
-// Eingangspunkt fuer die komplette Kategorie "Arithmetik" - entscheidet,
-// welcher Einzel-Generator (oder welche Kombination davon) benutzt wird.
-Task generateArithmeticTask(DifficultyLevel level);
+Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, bool mentalMath);
 
 #endif

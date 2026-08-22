@@ -54,12 +54,18 @@ MainWindow::MainWindow(QWidget *parent)
     symbolMenu->repositionAt(stack->width(), stack->height());
     symbolMenu->raise();
 
-    connect(sidebar, &SidebarMenu::categorySelected, this, [this](const QString &category, const QString &subcategory) {
+    connect(sidebar, &SidebarMenu::mentalMathModeChanged, this, [this](bool enabled) {
+        controller.setMentalMathMode(enabled);
+        controller.startNewTask();
+        showNewTask();
+    });
+
+    connect(sidebar, &SidebarMenu::activeSelectionsChanged, this, [this](const QVector<QPair<QString, QString>> &active) {
         stack->setCurrentWidget(taskView);
         sidebar->raise();
         symbolMenu->raise();
-        qDebug() << "Category selected:" << category << "-" << subcategory;
-        controller.startNewTask();   // Generator unterscheidet noch nicht nach Kategorie - kommt mit arithmetic_generator
+        controller.setActiveSelections(active);
+        controller.startNewTask();
         showNewTask();
     });
 
