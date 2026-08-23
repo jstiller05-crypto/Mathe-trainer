@@ -5,9 +5,12 @@
 #include "task_fragment.h"
 #include "difficulty.h"
 
-Task generateAdditionSubtractionTask(DifficultyLevel level, bool mentalMath);
-TaskFragment generateAdditionSubtractionFragment(DifficultyLevel level, bool mentalMath);
-Task combineWithAdditionSubtraction(const TaskFragment &first, DifficultyLevel level, bool mentalMath);
+Task generateAdditionTask(DifficultyLevel level, bool mentalMath);
+TaskFragment generateAdditionFragment(DifficultyLevel level, bool mentalMath);
+
+Task generateSubtractionTask(DifficultyLevel level, bool mentalMath);
+TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath);
+
 TaskFragment combineFragments(const TaskFragment &a, const TaskFragment &b, bool mentalMath);
 
 #endif

@@ -89,7 +89,7 @@ SidebarMenu::SidebarMenu(QWidget *parent)
 void SidebarMenu::buildCategoryTree()
 {
     QVector<CategoryDefinition> categories = {
-        { "Arithmetik", { "Addition & Subtraktion", "Bruch-/Prozentrechnung", "Wurzel/Potenz/Logarithmus", "Finanzen & Einheiten" }, true },
+        { "Arithmetik", { "Addition", "Subtraktion", "Multiplikation", "Division", "Prozentrechnung", "Potenz", "Wurzel", "Logarithmus", "Finanzen & Einheiten" }, true },
         { "Trigonometrie", { "Kopfrechenaufgaben", "Winkelberechnung", "Seitenberechnung", "Dreiecksberechnung", "Sinus-/Kosinussatz", "Einheitskreis" }, false },
         { "Geometrie", { "Kopfrechenaufgaben", "Volumenberechnung", "Flächeninhalt", "Mantel/Oberfläche", "Umfang", "Ähnlichkeit/Maßstab", "Koordinatengeometrie" }, false },
         { "Algebra", { "Lineare Funktionen", "Parabeln", "Exponentielle Funktionen", "Gleichungen lösen", "Ungleichungen", "Lineare Gleichungssysteme" }, false },
@@ -116,10 +116,24 @@ void SidebarMenu::buildCategoryTree()
             subButton->setObjectName("subCategoryButton");
             subButton->setEnabled(def.enabled);
             subButton->setCheckable(true);
+            subButton->setProperty("subcategoryName", sub);   // NEU - fuer zuverlaessiges Wiedererkennen
+
+            if (def.name == "Arithmetik" && sub == "Addition") {   // <- "Addition & Subtraktion" -> "Addition"
+                subButton->setChecked(true);
+            }
 
             QString categoryName = def.name;
-            connect(subButton, &QPushButton::toggled, this, [this, categoryName, sub](bool checked) {
+            connect(subButton, &QPushButton::toggled, this, [this, categoryName, sub, subButton](bool checked) {
                 QPair<QString, QString> key(categoryName, sub);
+
+                if (!checked && activeSelections.size() == 1 && activeSelections.contains(key)) {
+                    qDebug() << "[Sidebar] Letzte aktive Auswahl kann nicht abgeschaltet werden:" << key;
+                    subButton->blockSignals(true);
+                    subButton->setChecked(true);
+                    subButton->blockSignals(false);
+                    return;
+                }
+
                 if (checked) {
                     if (!activeSelections.contains(key)) activeSelections.append(key);
                 } else {
@@ -130,6 +144,7 @@ void SidebarMenu::buildCategoryTree()
             });
 
             subLayout->addWidget(subButton);
+            block.subButtons.append(subButton);   // NEU - fuer setAvailableSubcategories() gebraucht
 
             if (def.name == "Arithmetik" && sub == "Addition & Subtraktion") {
                 subButton->setChecked(true);
@@ -147,6 +162,24 @@ void SidebarMenu::buildCategoryTree()
             b.subVisible = !b.subVisible;
             b.subContainer->setVisible(b.subVisible && expanded);
         });
+    }
+}
+
+void SidebarMenu::setAvailableSubcategories(const QString &category, const QStringList &availableSubcategories)
+{
+    for (CategoryBlock &block : categoryBlocks) {
+        if (block.fullName != category) continue;
+
+        for (QPushButton *btn : block.subButtons) {
+            QString subName = btn->property("subcategoryName").toString();
+            bool isAvailable = availableSubcategories.contains(subName);
+
+            btn->setVisible(isAvailable);
+
+            if (!isAvailable && btn->isChecked()) {
+                btn->setChecked(false);   // loest automatisch das toggled-Signal aus, entfernt es aus activeSelections
+            }
+        }
     }
 }
 

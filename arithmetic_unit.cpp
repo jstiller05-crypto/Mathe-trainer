@@ -10,28 +10,33 @@
 
 static TaskFragment fragmentForSubcategory(const QString &subcategory, DifficultyLevel level, bool mentalMath)
 {
-    if (subcategory == "Addition & Subtraktion") return generateAdditionSubtractionFragment(level, mentalMath);
-    if (subcategory == "Wurzel/Potenz/Logarithmus") return generateRootPowerLogFragment(level, mentalMath);
-    if (subcategory == "Bruch-/Prozentrechnung") return generateMultDivFragment(level, mentalMath);
+    if (subcategory == "Addition") return generateAdditionFragment(level, mentalMath);
+    if (subcategory == "Subtraktion") return generateSubtractionFragment(level, mentalMath);
+    if (subcategory == "Multiplikation") return generateMultiplicationFragment(level, mentalMath);
+    if (subcategory == "Division") return generateDivisionFragment(level, mentalMath);
+    if (subcategory == "Potenz") return generatePowerFragment(level, mentalMath);
+    if (subcategory == "Wurzel") return generateRootFragment(level, mentalMath);
+    if (subcategory == "Logarithmus") return generateLogFragment(level, mentalMath);
 
     qWarning() << "[ArithmeticUnit] Unterkategorie" << subcategory << "unterstuetzt keine Fragmente - Fallback";
-    return generateAdditionSubtractionFragment(level, mentalMath);
+    return generateAdditionFragment(level, mentalMath);
 }
 
 static bool supportsFragment(const QString &subcategory)
 {
-    return subcategory != "Finanzen & Einheiten";
+    return subcategory != "Finanzen & Einheiten" && subcategory != "Prozentrechnung";
 }
 
 static Task standaloneForSubcategory(const QString &subcategory, DifficultyLevel level, bool mentalMath)
 {
-    if (subcategory == "Addition & Subtraktion") return generateAdditionSubtractionTask(level, mentalMath);
-    if (subcategory == "Wurzel/Potenz/Logarithmus") return generateRootPowerLogTask(level, mentalMath);
-
-    if (subcategory == "Bruch-/Prozentrechnung") {
-        bool usePercent = (rand() % 2 == 0);
-        return usePercent ? generatePercentTask(level, mentalMath) : generateMultDivTask(level, mentalMath);
-    }
+    if (subcategory == "Addition") return generateAdditionTask(level, mentalMath);
+    if (subcategory == "Subtraktion") return generateSubtractionTask(level, mentalMath);
+    if (subcategory == "Multiplikation") return generateMultiplicationTask(level, mentalMath);
+    if (subcategory == "Division") return generateDivisionTask(level, mentalMath);
+    if (subcategory == "Prozentrechnung") return generatePercentTask(level, mentalMath);
+    if (subcategory == "Potenz") return generatePowerTask(level, mentalMath);
+    if (subcategory == "Wurzel") return generateRootTask(level, mentalMath);
+    if (subcategory == "Logarithmus") return generateLogTask(level, mentalMath);
 
     if (subcategory == "Finanzen & Einheiten") {
         bool useFinance = (rand() % 2 == 0);
@@ -39,7 +44,7 @@ static Task standaloneForSubcategory(const QString &subcategory, DifficultyLevel
     }
 
     qWarning() << "[ArithmeticUnit] Unbekannte Unterkategorie:" << subcategory << "- Fallback";
-    return generateAdditionSubtractionTask(level, mentalMath);
+    return generateAdditionTask(level, mentalMath);
 }
 
 static int pickChainLength(bool mentalMath, int activeFragmentCapableCount)
@@ -63,8 +68,8 @@ static int pickChainLength(bool mentalMath, int activeFragmentCapableCount)
 Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, bool mentalMath)
 {
     if (activeSubcategories.isEmpty()) {
-        qWarning() << "[ArithmeticUnit] Keine Unterkategorie aktiv - Fallback auf Addition & Subtraktion";
-        return generateAdditionSubtractionTask(level, mentalMath);
+        qWarning() << "[ArithmeticUnit] Keine Unterkategorie aktiv - Fallback auf Addition";
+        return generateAdditionTask(level, mentalMath);
     }
 
     qDebug() << "[ArithmeticUnit] Aktive Unterkategorien:" << activeSubcategories << "| mentalMath:" << mentalMath;
@@ -102,4 +107,17 @@ Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubc
 
     qDebug() << "[ArithmeticUnit] FERTIGE KETTE:" << task.promptText << "| Loesung:" << chain.value;
     return task;
+}
+
+QStringList arithmeticAvailableSubcategories(DifficultyLevel level)
+{
+    QStringList available;
+    available << "Addition" << "Subtraktion" << "Multiplikation" << "Division" << "Prozentrechnung" << "Finanzen & Einheiten";
+
+    if (level >= RootPowerLogCriteria::PowerMinLevel) available << "Potenz";
+    if (level >= RootPowerLogCriteria::RootMinLevel) available << "Wurzel";
+    if (level >= RootPowerLogCriteria::LogMinLevel) available << "Logarithmus";
+
+    qDebug() << "[ArithmeticUnit] Verfuegbare Unterkategorien bei Level" << level << ":" << available;
+    return available;
 }

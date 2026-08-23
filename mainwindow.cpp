@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "arithmetic_unit.h"
 #include <QGuiApplication>
 #include <QStyleHints>
 #include <QDebug>
@@ -49,6 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     sidebar->move(0, 0);
     sidebar->resize(sidebar->width(), stack->height());
     sidebar->raise();
+    sidebar->setAvailableSubcategories("Arithmetik", arithmeticAvailableSubcategories(Preset::Beginner));
 
     symbolMenu = new SymbolMenu(stack);
     symbolMenu->repositionAt(stack->width(), stack->height());
@@ -79,7 +81,9 @@ MainWindow::MainWindow(QWidget *parent)
         stack->setCurrentWidget(taskView);
         sidebar->raise();
         symbolMenu->raise();
-        controller.setDifficultyLevel(classToLevel(schoolClass));
+        int level = classToLevel(schoolClass);
+        controller.setDifficultyLevel(level);
+        sidebar->setAvailableSubcategories("Arithmetik", arithmeticAvailableSubcategories(level));
         controller.startNewTask();
         showNewTask();
     });

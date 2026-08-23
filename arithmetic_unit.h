@@ -6,5 +6,6 @@
 #include <QStringList>
 
 Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, bool mentalMath);
+QStringList arithmeticAvailableSubcategories(DifficultyLevel level);
 
 #endif

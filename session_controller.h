@@ -25,7 +25,7 @@ private:
     DifficultyLevel currentLevel;
     QString currentCategory = "Arithmetik";        // Startwert, damit es auch ohne Sidebar-Klick funktioniert
     QString currentSubcategory = "Kopfrechenaufgaben";
-    QVector<QPair<QString, QString>> activeSelections = { { "Arithmetik", "Addition & Subtraktion" } };
+    QVector<QPair<QString, QString>> activeSelections = { { "Arithmetik", "Addition" } };
     bool mentalMathMode = true;
 };
 

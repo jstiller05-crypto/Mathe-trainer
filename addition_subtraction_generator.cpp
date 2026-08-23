@@ -12,9 +12,6 @@ static bool negativeResultsAllowed(DifficultyLevel level)
     return level >= 31;
 }
 
-// Erzeugt eine Zahl bis maxValue - bevorzugt KLEINE Werte, laesst groessere
-// aber gelegentlich zu. Zusaetzlich: je mehr Stellen die Zahl hat, desto
-// "runder" wird sie DIREKT bei der Erzeugung - keine nachtraegliche Pruefung.
 static int generateMentalMathFriendlyNumber(int maxValue)
 {
     double randomFraction = static_cast<double>(rand()) / RAND_MAX;
@@ -26,37 +23,31 @@ static int generateMentalMathFriendlyNumber(int maxValue)
     return rawValue;
 }
 
-Task generateAdditionSubtractionTask(DifficultyLevel level, bool mentalMath)
+static int generateOperand(int maxValue, bool mentalMath)
+{
+    return mentalMath ? generateMentalMathFriendlyNumber(maxValue) : (rand() % maxValue + 1);
+}
+
+Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
 {
     int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
-
-    int first = mentalMath ? generateMentalMathFriendlyNumber(maxNumber) : (rand() % maxNumber + 1);
-    bool isAddition = (rand() % 2 == 0);
-
-    int second;
-    if (isAddition) {
-        second = mentalMath ? generateMentalMathFriendlyNumber(maxNumber) : (rand() % maxNumber + 1);
-    } else {
-        int upperBound = negativeResultsAllowed(level) ? maxNumber : first;
-        second = mentalMath ? generateMentalMathFriendlyNumber(upperBound) : (rand() % (upperBound + 1));
-    }
-
-    double result = isAddition ? (first + second) : (first - second);
+    int first = generateOperand(maxNumber, mentalMath);
+    int second = generateOperand(maxNumber, mentalMath);
 
     Task task;
-    task.ruleName = "AdditionSubtraction";
-    task.promptText = QString("%1 %2 %3 =").arg(first).arg(isAddition ? "+" : "-").arg(second);
-    task.answers.append({ "", result });
+    task.ruleName = "Addition";
+    task.promptText = QString("%1 + %2 =").arg(first).arg(second);
+    task.answers.append({ "", static_cast<double>(first + second) });
     task.autoAdvance = mentalMath;
 
-    qDebug() << "[AdditionSubtraction] mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Addition] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
 }
 
-TaskFragment generateAdditionSubtractionFragment(DifficultyLevel level, bool mentalMath)
+TaskFragment generateAdditionFragment(DifficultyLevel level, bool mentalMath)
 {
     int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
-    int value = mentalMath ? generateMentalMathFriendlyNumber(maxNumber) : (rand() % maxNumber + 1);
+    int value = generateOperand(maxNumber, mentalMath);
 
     TaskFragment fragment;
     fragment.value = value;
@@ -64,22 +55,28 @@ TaskFragment generateAdditionSubtractionFragment(DifficultyLevel level, bool men
     return fragment;
 }
 
-Task combineWithAdditionSubtraction(const TaskFragment &first, DifficultyLevel level, bool mentalMath)
+Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
 {
     int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
-    int second = mentalMath ? generateMentalMathFriendlyNumber(maxNumber) : (rand() % maxNumber + 1);
-    bool isAddition = (rand() % 2 == 0);
+    int first = generateOperand(maxNumber, mentalMath);
 
-    double result = isAddition ? (first.value + second) : (first.value - second);
+    int upperBound = negativeResultsAllowed(level) ? maxNumber : first;
+    int second = mentalMath ? generateMentalMathFriendlyNumber(upperBound) : (rand() % (upperBound + 1));
 
     Task task;
-    task.ruleName = "AdditionSubtraction (kombiniert)";
-    task.promptText = QString("%1 %2 %3 =").arg(first.display).arg(isAddition ? "+" : "-").arg(second);
-    task.answers.append({ "", result });
+    task.ruleName = "Subtraction";
+    task.promptText = QString("%1 - %2 =").arg(first).arg(second);
+    task.answers.append({ "", static_cast<double>(first - second) });
     task.autoAdvance = mentalMath;
 
-    qDebug() << "[AdditionSubtraction] Kombiniert, mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Subtraction] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
+}
+
+TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath)
+{
+    // Fragment ist einfach ein Zahlenwert - gleiche Logik wie bei Addition
+    return generateAdditionFragment(level, mentalMath);
 }
 
 TaskFragment combineFragments(const TaskFragment &a, const TaskFragment &b, bool mentalMath)

@@ -20,6 +20,7 @@ public:
 
     int barWidth() const;
     void setBarWidth(int width);
+    void setAvailableSubcategories(const QString &category, const QStringList &availableSubcategories);
 
 signals:
     void settingsClicked();
@@ -36,6 +37,7 @@ private:
         QString fullName;
         QPushButton *headerButton;
         QWidget *subContainer;
+        QVector<QPushButton*> subButtons;
         bool subVisible = false;
     };
 

@@ -1,15 +1,14 @@
 #include "root_power_log_generator.h"
 #include <cstdlib>
 #include <cmath>
-#include <QVector>
 #include <QDebug>
 
-// mentalMath=true: kleine Basis (2-9), kleiner Exponent (2-3) - immer im Kopf machbar
-// mentalMath=false: groessere Basis/Exponent erlaubt - Herausforderung
-static TaskFragment makePowerFragment(bool mentalMath)
+static TaskFragment buildPowerFragment(DifficultyLevel level, bool mentalMath)
 {
+    bool fullRangeUnlocked = level >= RootPowerLogCriteria::PowerFullMinLevel;
+
     int base = mentalMath ? (rand() % 8 + 2) : (rand() % 12 + 2);
-    int exponent = mentalMath ? (rand() % 2 + 2) : (rand() % 3 + 2);
+    int exponent = fullRangeUnlocked ? (mentalMath ? (rand() % 2 + 2) : (rand() % 3 + 2)) : 2;
 
     TaskFragment fragment;
     fragment.value = std::pow(base, exponent);
@@ -17,10 +16,28 @@ static TaskFragment makePowerFragment(bool mentalMath)
     return fragment;
 }
 
-// mentalMath=true: IMMER eine echte Quadratzahl (4,9,16,...) - im Kopf loesbar
-// mentalMath=false: beliebiger Operand erlaubt, Ergebnis wird gerundet
-static TaskFragment makeRootFragment(bool mentalMath)
+Task generatePowerTask(DifficultyLevel level, bool mentalMath)
 {
+    TaskFragment fragment = buildPowerFragment(level, mentalMath);
+
+    Task task;
+    task.ruleName = "Power";
+    task.promptText = fragment.display + " =";
+    task.answers.append({ "", fragment.value });
+    task.autoAdvance = mentalMath;
+
+    qDebug() << "[Power] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
+    return task;
+}
+
+TaskFragment generatePowerFragment(DifficultyLevel level, bool mentalMath)
+{
+    return buildPowerFragment(level, mentalMath);
+}
+
+static TaskFragment buildRootFragment(DifficultyLevel level, bool mentalMath)
+{
+    Q_UNUSED(level);
     TaskFragment fragment;
 
     if (mentalMath) {
@@ -29,18 +46,36 @@ static TaskFragment makeRootFragment(bool mentalMath)
         fragment.value = root;
         fragment.display = QString("√%1").arg(operand);
     } else {
-        int operand = rand() % 90 + 10;   // NICHT zwingend eine Quadratzahl
-        fragment.value = std::round(std::sqrt(operand) * 100.0) / 100.0;   // auf 2 Nachkommastellen runden
+        int operand = rand() % 90 + 10;
+        fragment.value = std::round(std::sqrt(operand) * 100.0) / 100.0;
         fragment.display = QString("√%1").arg(operand);
     }
 
     return fragment;
 }
 
-// mentalMath=true: nur Zehnerpotenzen (10,100,1000,...) - im Kopf loesbar
-// mentalMath=false: beliebige Basis-10-Zahl, Ergebnis gerundet
-static TaskFragment makeLogFragment(bool mentalMath)
+Task generateRootTask(DifficultyLevel level, bool mentalMath)
 {
+    TaskFragment fragment = buildRootFragment(level, mentalMath);
+
+    Task task;
+    task.ruleName = "Root";
+    task.promptText = fragment.display + " =";
+    task.answers.append({ "", fragment.value });
+    task.autoAdvance = mentalMath;
+
+    qDebug() << "[Root] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
+    return task;
+}
+
+TaskFragment generateRootFragment(DifficultyLevel level, bool mentalMath)
+{
+    return buildRootFragment(level, mentalMath);
+}
+
+static TaskFragment buildLogFragment(DifficultyLevel level, bool mentalMath)
+{
+    Q_UNUSED(level);
     TaskFragment fragment;
 
     if (mentalMath) {
@@ -57,37 +92,21 @@ static TaskFragment makeLogFragment(bool mentalMath)
     return fragment;
 }
 
-static TaskFragment pickFragment(DifficultyLevel level, bool mentalMath, QString &ruleNameOut)
+Task generateLogTask(DifficultyLevel level, bool mentalMath)
 {
-    QVector<int> available = { 0 };
-    if (level >= 55) available.append(1);
-    if (level >= 70) available.append(2);
-
-    int choice = available[rand() % available.size()];
-
-    if (choice == 0) { ruleNameOut = "Power"; return makePowerFragment(mentalMath); }
-    if (choice == 1) { ruleNameOut = "Root"; return makeRootFragment(mentalMath); }
-    ruleNameOut = "Log";
-    return makeLogFragment(mentalMath);
-}
-
-Task generateRootPowerLogTask(DifficultyLevel level, bool mentalMath)
-{
-    QString ruleName;
-    TaskFragment fragment = pickFragment(level, mentalMath, ruleName);
+    TaskFragment fragment = buildLogFragment(level, mentalMath);
 
     Task task;
-    task.ruleName = ruleName;
+    task.ruleName = "Log";
     task.promptText = fragment.display + " =";
     task.answers.append({ "", fragment.value });
     task.autoAdvance = mentalMath;
 
-    qDebug() << "[RootPowerLog] mentalMath:" << mentalMath << "|" << task.promptText << "=" << fragment.value;
+    qDebug() << "[Log] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
 }
 
-TaskFragment generateRootPowerLogFragment(DifficultyLevel level, bool mentalMath)
+TaskFragment generateLogFragment(DifficultyLevel level, bool mentalMath)
 {
-    QString unusedRuleName;
-    return pickFragment(level, mentalMath, unusedRuleName);
+    return buildLogFragment(level, mentalMath);
 }
