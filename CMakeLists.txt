@@ -55,6 +55,8 @@ qt_add_executable(mathe-trainer
     units_generator.cpp
     arithmetic_unit.h
     arithmetic_unit.cpp
+    written_grid_widget.h
+    written_grid_widget.cpp
 )
 
 target_link_libraries(mathe-trainer

@@ -2,14 +2,21 @@
 #define TASK_H
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
-#include "topic.h"
 
-// Ein einzelnes Antwortfeld. Bei einfachen Kopfrechenaufgaben gibt's nur eins
-// (label bleibt leer), bei komplexeren Aufgaben (z.B. Dreieck) mehrere gleichzeitig.
 struct AnswerSlot {
-    QString label;          // Beschriftung über dem Feld, z.B. "Hypotenuse c" - leer bei einfachen Aufgaben
-    double expectedValue;    // die erwartete, richtige Lösung für GENAU dieses Feld
+    QString label;
+    double expectedValue;
+};
+
+// Beschreibt, WIE eine Aufgabe als schriftliches Rechenverfahren dargestellt wird.
+// operands.isEmpty() == true bedeutet "nicht anwendbar", dann bleibt die alte,
+// einzeilige Darstellung (fuer Kopfrechnen-Aufgaben) aktiv.
+struct WrittenCalculation {
+    QStringList operands;      // z.B. {"47", "38"} fuer 47 + 38
+    QString operatorSymbol;     // "+", "-", "×"
+    int answerDigitCount = 0;    // wie viele Ziffern-Kaestchen fuer das Ergebnis
 };
 
 struct Task {
@@ -17,6 +24,7 @@ struct Task {
     QString promptText;
     QVector<AnswerSlot> answers;
     bool autoAdvance = true;
+    WrittenCalculation writtenCalculation;   // leer = normale Kopfrechnen-Darstellung
 };
 
-#endif // TASK_H
+#endif

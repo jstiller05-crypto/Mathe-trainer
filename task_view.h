@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QVector>
 #include "task.h"
+#include "written_grid_widget.h"
 
 class TaskView : public QWidget
 {
@@ -45,6 +46,8 @@ private:
 
     void rebuildAnswerFields(const QVector<AnswerSlot> &answerSlots);
     void focusNextField(QLineEdit *current);
+
+    WrittenGridWidget *writtenGrid;
 };
 
 #endif

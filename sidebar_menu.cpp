@@ -29,6 +29,15 @@ SidebarMenu::SidebarMenu(QWidget *parent)
         qDebug() << "[Sidebar] Kopfrechnen-Modus:" << checked;
     });
 
+    testGridButton = new QPushButton("🧪 Test: Raster", this);
+    testGridButton->setObjectName("testGridButton");
+    testGridButton->installEventFilter(this);
+    layout->addWidget(testGridButton);
+
+    connect(testGridButton, &QPushButton::clicked, this, [this]() {
+        emit testWrittenGridRequested();
+    });
+
     buildCategoryTree();
 
     layout->addStretch();

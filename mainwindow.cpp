@@ -88,6 +88,21 @@ MainWindow::MainWindow(QWidget *parent)
         showNewTask();
     });
 
+    connect(sidebar, &SidebarMenu::testWrittenGridRequested, this, [this]() {
+        Task sample;
+        sample.ruleName = "Test";
+        sample.writtenCalculation.operands = { "47", "138" };
+        sample.writtenCalculation.operatorSymbol = "+";
+        sample.writtenCalculation.answerDigitCount = 3;
+        sample.answers.append({ "", 185.0 });
+        sample.autoAdvance = false;
+
+        stack->setCurrentWidget(taskView);
+        sidebar->raise();
+        symbolMenu->raise();
+        taskView->showTask(sample);
+    });
+
     connect(taskView, &TaskView::answerSubmitted, this, &MainWindow::onAnswerSubmitted);
     connect(taskView, &TaskView::symbolMenuToggled, symbolMenu, &SymbolMenu::toggleOpen);
     connect(taskView, &TaskView::skipRequested, this, &MainWindow::onSkipRequested);

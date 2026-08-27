@@ -4,3 +4,4 @@
 #include "EWIEGA46WW/moc_sidebar_menu.cpp"
 #include "EWIEGA46WW/moc_symbol_menu.cpp"
 #include "EWIEGA46WW/moc_task_view.cpp"
+#include "EWIEGA46WW/moc_written_grid_widget.cpp"

@@ -40,6 +40,12 @@ Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", static_cast<double>(first + second) });
     task.autoAdvance = mentalMath;
 
+    if (!mentalMath) {
+        task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
+        task.writtenCalculation.operatorSymbol = "+";
+        task.writtenCalculation.answerDigitCount = QString::number(first + second).length();
+    }
+
     qDebug() << "[Addition] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
 }
@@ -71,6 +77,12 @@ Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
 
     qDebug() << "[Subtraction] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
+
+    if (!mentalMath) {
+        task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
+        task.writtenCalculation.operatorSymbol = "-";
+        task.writtenCalculation.answerDigitCount = QString::number(first - second).length();
+    }
 }
 
 TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath)

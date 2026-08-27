@@ -29,6 +29,11 @@ TaskView::TaskView(QWidget *parent)
     feedbackLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(feedbackLabel);
 
+    writtenGrid = new WrittenGridWidget(this);
+    writtenGrid->setVisible(false);
+    mainLayout->addWidget(writtenGrid);
+    connect(writtenGrid, &WrittenGridWidget::answerSubmitted, this, &TaskView::answerSubmitted);
+
     mainLayout->addStretch();   // EINMAL hier - schiebt alles Folgende ganz nach unten
 
     // --- Button-Reihe ganz unten, horizontal zentriert ---
@@ -76,9 +81,20 @@ void TaskView::insertSymbolAtFocus(const QString &symbol)
 
 void TaskView::showTask(const Task &task)
 {
-    promptLabel->setText(task.promptText);
+    bool isWritten = !task.writtenCalculation.operands.isEmpty();
+
+    promptLabel->setVisible(!isWritten);
+    answerRowWidget->setVisible(!isWritten);
+    writtenGrid->setVisible(isWritten);
+
+    if (isWritten) {
+        writtenGrid->showCalculation(task.writtenCalculation);
+    } else {
+        promptLabel->setText(task.promptText);
+        rebuildAnswerFields(task.answers);
+    }
+
     feedbackLabel->setText("");
-    rebuildAnswerFields(task.answers);   // Aufruf bleibt gleich
 }
 
 void TaskView::rebuildAnswerFields(const QVector<AnswerSlot> &answerSlots)   // <- umbenannt
@@ -112,17 +128,22 @@ void TaskView::rebuildAnswerFields(const QVector<AnswerSlot> &answerSlots)   // 
 
 QVector<QString> TaskView::currentAnswerTexts() const
 {
-    QVector<QString> texts;
-    for (QLineEdit *field : answerFields) {
-        texts.append(field->text());
+    if (writtenGrid->isVisible()) {
+        return { writtenGrid->currentAnswerText() };
     }
+    QVector<QString> texts;
+    for (QLineEdit *field : answerFields) texts.append(field->text());
     return texts;
 }
 
 void TaskView::showAnswerColors(const QVector<bool> &correctness)
 {
+    if (writtenGrid->isVisible()) {
+        writtenGrid->showAnswerColor(!correctness.isEmpty() && correctness.first());
+        return;
+    }
     for (int i = 0; i < answerFields.size() && i < correctness.size(); ++i) {
-        QString color = correctness[i] ? "#2ecc71" : "#e74c3c";   // grün / rot
+        QString color = correctness[i] ? "#2ecc71" : "#e74c3c";
         answerFields[i]->setStyleSheet(QString("border: 2px solid %1;").arg(color));
     }
 }
@@ -135,9 +156,8 @@ void TaskView::showFeedbackText(const QString &text)
 void TaskView::setInputEnabled(bool enabled)
 {
     checkButton->setEnabled(enabled);
-    for (QLineEdit *field : answerFields) {
-        field->setEnabled(enabled);
-    }
+    writtenGrid->setInputEnabled(enabled);
+    for (QLineEdit *field : answerFields) field->setEnabled(enabled);
 }
 
 void TaskView::setContinueButtonVisible(bool visible)
@@ -147,7 +167,9 @@ void TaskView::setContinueButtonVisible(bool visible)
 
 void TaskView::focusFirstField()
 {
-    if (!answerFields.isEmpty()) {
+    if (writtenGrid->isVisible()) {
+        writtenGrid->focusFirstDigit();
+    } else if (!answerFields.isEmpty()) {
         answerFields.first()->setFocus();
     }
 }

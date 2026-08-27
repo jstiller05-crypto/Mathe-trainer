@@ -21,6 +21,12 @@ Task generateMultiplicationTask(DifficultyLevel level, bool mentalMath)
 
     qDebug() << "[Multiplication] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
+
+    if (!mentalMath) {
+        task.writtenCalculation.operands = { QString::number(a), QString::number(b) };
+        task.writtenCalculation.operatorSymbol = "×";
+        task.writtenCalculation.answerDigitCount = QString::number(a * b).length();
+    }
 }
 
 TaskFragment generateMultiplicationFragment(DifficultyLevel level, bool mentalMath)

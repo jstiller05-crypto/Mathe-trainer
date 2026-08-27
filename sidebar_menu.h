@@ -26,6 +26,7 @@ signals:
     void settingsClicked();
     void mentalMathModeChanged(bool enabled);
     void activeSelectionsChanged(const QVector<QPair<QString, QString>> &active);
+    void testWrittenGridRequested();
 
 protected:
     void leaveEvent(QEvent *event) override;
@@ -47,8 +48,10 @@ private:
     QVBoxLayout *layout;
     QPushButton *settingsButton;
     QPushButton *mentalMathButton;
+    QPushButton *testGridButton;
     QVector<CategoryBlock> categoryBlocks;
     QVector<QPair<QString, QString>> activeSelections;
+
 
     static constexpr int collapsedWidth = 60;
     static constexpr int expandedWidth = 240;
