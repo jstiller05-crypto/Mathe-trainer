@@ -18,13 +18,15 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const QString &numberFontFamily, QWidget *parent = nullptr);
     ~MainWindow();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
+    QString numberFontFamily;
+
     Ui::MainWindow *ui;
     SessionController controller;
     SidebarMenu *sidebar;

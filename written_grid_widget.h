@@ -13,11 +13,13 @@ class WrittenGridWidget : public QWidget
 public:
     explicit WrittenGridWidget(QWidget *parent = nullptr);
 
-    void showCalculation(const WrittenCalculation &calc);
     QString currentAnswerText() const;
+
+    void showCalculation(const WrittenCalculation &calc);
     void setInputEnabled(bool enabled);
     void showAnswerColor(bool correct);
     void focusFirstDigit();
+    void setNumberFont(const QString &family);
 
 signals:
     void answerSubmitted();
@@ -30,17 +32,13 @@ protected:
 private:
     WrittenCalculation calculation;
     QVector<QLineEdit*> answerFields;
+    QString numberFontFamily;
 
     int totalDigitColumns = 0;
-    int lineRowIndex = 0;
-    int totalDataRows = 0;
-
-    // Alles hier ist relativ zur AKTUELLEN Widget-Groesse berechnet - keine festen Pixelwerte
-    double cellWidth = 0;
-    double cellHeight = 0;   // IMMER cellWidth * 2 - so bleibt das "Karo-Verhaeltnis" (Ziffer 2x so hoch wie breit) erhalten
+    int pageRows = 0;
+    double squareSize = 0;
     double gridXOffset = 0;
     double gridYOffset = 0;
-    QVector<double> rowYOffsets;
 
     void recomputeLayout();
     void layoutAnswerFields();

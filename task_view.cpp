@@ -31,7 +31,7 @@ TaskView::TaskView(QWidget *parent)
 
     writtenGrid = new WrittenGridWidget(this);
     writtenGrid->setVisible(false);
-    mainLayout->addWidget(writtenGrid);
+    writtenGrid->lower();
     connect(writtenGrid, &WrittenGridWidget::answerSubmitted, this, &TaskView::answerSubmitted);
 
     mainLayout->addStretch();   // EINMAL hier - schiebt alles Folgende ganz nach unten
@@ -66,6 +66,11 @@ TaskView::TaskView(QWidget *parent)
 
     bottomRow->addStretch();
     mainLayout->addLayout(bottomRow);   // KEIN addStretch() mehr danach!
+}
+
+void TaskView::setNumberFontFamily(const QString &family)
+{
+    writtenGrid->setNumberFont(family);
 }
 
 void TaskView::insertSymbolAtFocus(const QString &symbol)
@@ -145,6 +150,14 @@ void TaskView::showAnswerColors(const QVector<bool> &correctness)
     for (int i = 0; i < answerFields.size() && i < correctness.size(); ++i) {
         QString color = correctness[i] ? "#2ecc71" : "#e74c3c";
         answerFields[i]->setStyleSheet(QString("border: 2px solid %1;").arg(color));
+    }
+}
+
+void TaskView::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    if (writtenGrid) {
+        writtenGrid->setGeometry(rect());   // füllt IMMER die komplette TaskView-Flaeche
     }
 }
 

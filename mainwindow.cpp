@@ -7,10 +7,11 @@
 #include <QTimer>
 #include <QResizeEvent>
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , controller(Preset::Beginner)
+    , numberFontFamily(numberFontFamily)
 {
     ui->setupUi(this);
 
@@ -19,26 +20,29 @@ MainWindow::MainWindow(QWidget *parent)
 
     QString styleSheet = QString(R"(
         QMainWindow { background-color: %1; }
-        QLabel#taskLabel { font-size: 32pt; font-weight: 600; color: %2; }
+        QLabel#taskLabel { font-size: 32pt; font-weight: 600; color: %2; font-family: "%5"; }
         QLabel#feedbackLabel { font-size: 13pt; color: %2; min-height: 20px; }
         QLineEdit#answerEdit {
             font-size: 18pt; padding: 10px 16px; border: 2px solid %3;
             border-radius: 8px; background-color: %1; color: %2;
-            min-width: 160px; max-width: 220px;
+            min-width: 160px; max-width: 220px; font-family: "%5";
         }
         QLineEdit#answerEdit:focus { border: 2px solid %4; }
+        QLineEdit#writtenAnswerDigit { font-family: "%5"; }
         QPushButton#checkButton { background-color: %3; border-radius: 8px; font-size: 16pt; padding: 6px; }
         QPushButton { background-color: %3; border-radius: 6px; padding: 8px 16px; color: white; border: none; }
         QPushButton:hover { background-color: %4; }
     )").arg(isDarkMode ? "#1E1E1E" : "#FAFAFA")
                              .arg(isDarkMode ? "#FFFFFF" : "#1E1E1E")
                              .arg(accentColor)
-                             .arg("#4A7BDB");
+                             .arg("#4A7BDB")
+                             .arg(numberFontFamily);   // NEU - %5
 
     setStyleSheet(styleSheet);
 
     stack = new QStackedWidget(this);
     taskView = new TaskView(this);
+    taskView->setNumberFontFamily(numberFontFamily);
     settingsView = new SettingsView(this);
 
     stack->addWidget(taskView);

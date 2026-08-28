@@ -22,8 +22,10 @@ public:
     void setInputEnabled(bool enabled);
     void focusFirstField();
     void setContinueButtonVisible(bool visible);
-    QVector<QString> currentAnswerTexts() const;
+    void setNumberFontFamily(const QString &family);
     void insertSymbolAtFocus(const QString &symbol);
+
+    QVector<QString> currentAnswerTexts() const;
 
 signals:
     void answerSubmitted();
@@ -33,6 +35,7 @@ signals:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     QLabel *promptLabel;
