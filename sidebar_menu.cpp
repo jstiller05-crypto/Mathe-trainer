@@ -24,6 +24,35 @@ SidebarMenu::SidebarMenu(QWidget *parent)
     mentalMathButton->installEventFilter(this);
     layout->addWidget(mentalMathButton);
 
+    worksheetButton = new QPushButton("📄 Aufgabenblatt", this);
+    worksheetButton->setObjectName("worksheetButton");
+    worksheetButton->setCheckable(true);
+    worksheetButton->installEventFilter(this);
+    layout->addWidget(worksheetButton);
+    connect(worksheetButton, &QPushButton::toggled, this, [this](bool checked) {
+        emit worksheetModeChanged(checked);
+    });
+
+    calculatorButton = new QPushButton("🖩 mit Taschenrechner", this);
+    calculatorButton->setObjectName("calculatorButton");
+    calculatorButton->setCheckable(true);
+    calculatorButton->installEventFilter(this);
+    layout->addWidget(calculatorButton);
+    connect(calculatorButton, &QPushButton::toggled, this, [this](bool checked) {
+        emit calculatorModeChanged(checked);
+        qDebug() << "[Sidebar] Taschenrechner-Modus (Platzhalter):" << checked;
+    });
+
+    hardTaskButton = new QPushButton("⚡ Schwere Aufgabe", this);
+    hardTaskButton->setObjectName("hardTaskButton");
+    hardTaskButton->setCheckable(true);
+    hardTaskButton->installEventFilter(this);
+    layout->addWidget(hardTaskButton);
+    connect(hardTaskButton, &QPushButton::toggled, this, [this](bool checked) {
+        emit hardTaskModeChanged(checked);
+        qDebug() << "[Sidebar] Schwere-Aufgabe-Modus (Platzhalter):" << checked;
+    });
+
     connect(mentalMathButton, &QPushButton::toggled, this, [this](bool checked) {
         emit mentalMathModeChanged(checked);
         qDebug() << "[Sidebar] Kopfrechnen-Modus:" << checked;

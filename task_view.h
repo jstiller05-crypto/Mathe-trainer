@@ -24,6 +24,7 @@ public:
     void setContinueButtonVisible(bool visible);
     void setNumberFontFamily(const QString &family);
     void insertSymbolAtFocus(const QString &symbol);
+    void showWorksheet(const QVector<WrittenCalculation> &calculations);
 
     QVector<QString> currentAnswerTexts() const;
 

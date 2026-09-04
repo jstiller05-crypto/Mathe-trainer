@@ -17,6 +17,8 @@ struct WrittenCalculation {
     QStringList operands;      // z.B. {"47", "38"} fuer 47 + 38
     QString operatorSymbol;     // "+", "-", "×"
     int answerDigitCount = 0;    // wie viele Ziffern-Kaestchen fuer das Ergebnis
+    enum class DisplayMode { Stacked, SingleLine };
+    DisplayMode mode = DisplayMode::Stacked;
 };
 
 struct Task {

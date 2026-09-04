@@ -19,6 +19,7 @@ void WrittenGridWidget::setNumberFont(const QString &family)
 
 void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
 {
+    worksheetCalculations.clear();   // Aufgabenblatt-Ansicht beenden, falls aktiv
     calculation = calc;
 
     for (QLineEdit *field : answerFields) field->deleteLater();
@@ -41,9 +42,7 @@ void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
         field->show();
     }
 
-    // WICHTIG: answerFields[0] ist die LINKESTE Ziffer (hoechster Stellenwert),
-    // answerFields.last() ist die RECHTESTE (Einer-Stelle). Schriftliches Rechnen
-    // beginnt bei den Einern -> nach Eingabe geht der Fokus nach LINKS (i-1), nicht nach rechts.
+    // Einer-Stelle zuerst: nach Eingabe geht der Fokus nach LINKS (i-1)
     for (int i = 0; i < answerFields.size(); ++i) {
         connect(answerFields[i], &QLineEdit::textChanged, this, [this, i](const QString &text) {
             if (text.length() == 1 && i - 1 >= 0) {
@@ -56,6 +55,16 @@ void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
     update();
 }
 
+void WrittenGridWidget::showWorksheet(const QVector<WrittenCalculation> &calculations)
+{
+    for (QLineEdit *field : answerFields) field->deleteLater();
+    answerFields.clear();
+    totalDigitColumns = 0;   // deaktiviert die normale Einzel-Aufgaben-Zeichnung
+
+    worksheetCalculations = calculations;
+    update();
+}
+
 void WrittenGridWidget::recomputeLayout()
 {
     if (totalDigitColumns == 0) return;
@@ -63,8 +72,18 @@ void WrittenGridWidget::recomputeLayout()
     squareSize = static_cast<double>(width()) / PAGE_COLUMNS;
     pageRows = static_cast<int>(height() / squareSize);
 
-    int taskColumnsInSquares = totalDigitColumns + 1;
-    int taskRowsInSquares = (calculation.operands.size() + 1) * 2;
+    int taskColumnsInSquares;
+    int taskRowsInSquares;
+
+    if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
+        int operandDigitsTotal = 0;
+        for (const QString &op : calculation.operands) operandDigitsTotal += op.length();
+        taskColumnsInSquares = operandDigitsTotal + (calculation.operands.size() - 1) + 1 + calculation.answerDigitCount;
+        taskRowsInSquares = 2;
+    } else {
+        taskColumnsInSquares = totalDigitColumns + 1;
+        taskRowsInSquares = (calculation.operands.size() + 1) * 2;
+    }
 
     int startColSquares = (PAGE_COLUMNS - taskColumnsInSquares) / 2;
     int startRowSquares = (pageRows - taskRowsInSquares) / 2;
@@ -82,6 +101,22 @@ void WrittenGridWidget::layoutAnswerFields()
     double cellWidth = squareSize;
     double cellHeight = squareSize * 2.0;
 
+    if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
+        int operandDigitsTotal = 0;
+        for (const QString &op : calculation.operands) operandDigitsTotal += op.length();
+        int answerStartCol = operandDigitsTotal + (calculation.operands.size() - 1) + 1;
+
+        for (int i = 0; i < answerFields.size(); ++i) {
+            double x = gridXOffset + (answerStartCol + i) * cellWidth;
+            double y = gridYOffset;
+            answerFields[i]->setGeometry(QRect(static_cast<int>(x), static_cast<int>(y),
+                                               static_cast<int>(cellWidth), static_cast<int>(cellHeight)));
+            answerFields[i]->setStyleSheet(QString("font-size: %1px; font-family: \"%2\"; background: transparent; border: none;")
+                                               .arg(static_cast<int>(cellHeight * 0.65)).arg(numberFontFamily));
+        }
+        return;
+    }
+
     int answerRowIndex = calculation.operands.size();
     int answerStartColumn = totalDigitColumns - calculation.answerDigitCount;
 
@@ -89,12 +124,10 @@ void WrittenGridWidget::layoutAnswerFields()
         int col = 1 + answerStartColumn + i;
         double x = gridXOffset + col * cellWidth;
         double y = gridYOffset + answerRowIndex * cellHeight;
-
         answerFields[i]->setGeometry(QRect(static_cast<int>(x), static_cast<int>(y),
                                            static_cast<int>(cellWidth), static_cast<int>(cellHeight)));
         answerFields[i]->setStyleSheet(QString("font-size: %1px; font-family: \"%2\"; background: transparent; border: none;")
-                                           .arg(static_cast<int>(cellHeight * 0.65))
-                                           .arg(numberFontFamily));
+                                           .arg(static_cast<int>(cellHeight * 0.65)).arg(numberFontFamily));
     }
 }
 
@@ -110,9 +143,9 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
+    // --- Hintergrund-Karo ueber die KOMPLETTE Flaeche ---
     QPen gridPen(QColor(150, 150, 150, 90), 1);
     painter.setPen(gridPen);
-
     for (double x = 0; x <= width(); x += squareSize) {
         painter.drawLine(QPointF(x, 0), QPointF(x, height()));
     }
@@ -120,6 +153,37 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(QPointF(0, y), QPointF(width(), y));
     }
 
+    // --- Aufgabenblatt: mehrere Aufgaben ueber die Seite verteilt ---
+    if (!worksheetCalculations.isEmpty()) {
+        QFont font = numberFontFamily.isEmpty() ? this->font() : QFont(numberFontFamily);
+        font.setPointSizeF(squareSize * 0.9);
+        painter.setFont(font);
+        painter.setPen(QPen(Qt::white, 1.2));
+
+        int columns = 3;
+        double cellW = squareSize * 8;
+        double cellH = squareSize * 4;
+
+        for (int i = 0; i < worksheetCalculations.size(); ++i) {
+            int row = i / columns;
+            int col = i % columns;
+            QRectF cellR(col * cellW, row * cellH, cellW, cellH);
+
+            QString line;
+            for (int j = 0; j < worksheetCalculations[i].operands.size(); ++j) {
+                line += worksheetCalculations[i].operands[j];
+                if (j < worksheetCalculations[i].operands.size() - 1) {
+                    line += " " + worksheetCalculations[i].operatorSymbol + " ";
+                }
+            }
+            line += " = ____";
+
+            painter.drawText(cellR, Qt::AlignCenter, line);
+        }
+        return;
+    }
+
+    // --- Einzelne Aufgabe (Stacked ODER SingleLine) ---
     if (totalDigitColumns == 0) return;
 
     double cellWidth = squareSize;
@@ -129,6 +193,26 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     font.setPointSizeF(cellHeight * 0.5);
     painter.setFont(font);
     painter.setPen(QPen(Qt::white, 1.5));
+
+    if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
+        int col = 0;
+        for (int i = 0; i < calculation.operands.size(); ++i) {
+            const QString &op = calculation.operands[i];
+            for (QChar ch : op) {
+                QRectF cellR(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
+                painter.drawText(cellR, Qt::AlignCenter, QString(ch));
+                col++;
+            }
+            if (i < calculation.operands.size() - 1) {
+                QRectF opRect(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
+                painter.drawText(opRect, Qt::AlignCenter, calculation.operatorSymbol);
+                col++;
+            }
+        }
+        QRectF eqRect(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
+        painter.drawText(eqRect, Qt::AlignCenter, "=");
+        return;
+    }
 
     for (int row = 0; row < calculation.operands.size(); ++row) {
         QString padded = calculation.operands[row].rightJustified(totalDigitColumns, ' ');
@@ -176,7 +260,6 @@ void WrittenGridWidget::showAnswerColor(bool correct)
 
 void WrittenGridWidget::focusFirstDigit()
 {
-    // "Erste" Eingabe beim schriftlichen Rechnen ist die RECHTESTE Ziffer (Einer) -> .last()
     if (!answerFields.isEmpty()) answerFields.last()->setFocus();
 }
 
@@ -191,7 +274,6 @@ bool WrittenGridWidget::eventFilter(QObject *watched, QEvent *event)
             return true;
         }
 
-        // Pfeiltasten: NEU - erlaubt manuelles Springen zwischen den Kaestchen
         if (field && (keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right)) {
             int index = answerFields.indexOf(field);
             if (index != -1) {

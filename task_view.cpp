@@ -141,6 +141,14 @@ QVector<QString> TaskView::currentAnswerTexts() const
     return texts;
 }
 
+void TaskView::showWorksheet(const QVector<WrittenCalculation> &calculations)
+{
+    promptLabel->setVisible(false);
+    answerRowWidget->setVisible(false);
+    writtenGrid->setVisible(true);
+    writtenGrid->showWorksheet(calculations);
+}
+
 void TaskView::showAnswerColors(const QVector<bool> &correctness)
 {
     if (writtenGrid->isVisible()) {

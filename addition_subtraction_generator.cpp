@@ -40,11 +40,10 @@ Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", static_cast<double>(first + second) });
     task.autoAdvance = mentalMath;
 
-    if (!mentalMath) {
-        task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
-        task.writtenCalculation.operatorSymbol = "+";
-        task.writtenCalculation.answerDigitCount = QString::number(first + second).length();
-    }
+    task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
+    task.writtenCalculation.operatorSymbol = "+";
+    task.writtenCalculation.answerDigitCount = QString::number(first + second).length();
+    task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
     qDebug() << "[Addition] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;

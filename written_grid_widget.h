@@ -13,13 +13,14 @@ class WrittenGridWidget : public QWidget
 public:
     explicit WrittenGridWidget(QWidget *parent = nullptr);
 
-    QString currentAnswerText() const;
-
     void showCalculation(const WrittenCalculation &calc);
+    void showWorksheet(const QVector<WrittenCalculation> &calculations);
+    void setNumberFont(const QString &family);
+
+    QString currentAnswerText() const;
     void setInputEnabled(bool enabled);
     void showAnswerColor(bool correct);
     void focusFirstDigit();
-    void setNumberFont(const QString &family);
 
 signals:
     void answerSubmitted();
@@ -31,6 +32,7 @@ protected:
 
 private:
     WrittenCalculation calculation;
+    QVector<WrittenCalculation> worksheetCalculations;
     QVector<QLineEdit*> answerFields;
     QString numberFontFamily;
 

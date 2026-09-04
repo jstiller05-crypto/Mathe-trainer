@@ -107,6 +107,17 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         taskView->showTask(sample);
     });
 
+    connect(sidebar, &SidebarMenu::worksheetModeChanged, this, [this](bool enabled) {
+        if (!enabled) { showNewTask(); return; }
+
+        QVector<WrittenCalculation> sheet;
+        for (int i = 0; i < 9; ++i) {
+            controller.startNewTask();
+            sheet.append(controller.getCurrentTask().writtenCalculation);
+        }
+        taskView->showWorksheet(sheet);
+    });
+
     connect(taskView, &TaskView::answerSubmitted, this, &MainWindow::onAnswerSubmitted);
     connect(taskView, &TaskView::symbolMenuToggled, symbolMenu, &SymbolMenu::toggleOpen);
     connect(taskView, &TaskView::skipRequested, this, &MainWindow::onSkipRequested);
