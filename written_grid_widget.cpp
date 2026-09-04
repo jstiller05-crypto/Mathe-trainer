@@ -19,7 +19,7 @@ void WrittenGridWidget::setNumberFont(const QString &family)
 
 void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
 {
-    worksheetCalculations.clear();   // Aufgabenblatt-Ansicht beenden, falls aktiv
+    worksheetTasks.clear();   // Aufgabenblatt-Ansicht beenden, falls aktiv
     calculation = calc;
 
     for (QLineEdit *field : answerFields) field->deleteLater();
@@ -31,10 +31,15 @@ void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
     }
     totalDigitColumns = std::max(maxOperandLength, calculation.answerDigitCount);
 
-    for (int i = 0; i < calculation.answerDigitCount; ++i) {
+    // Kommazahlen und negative Ergebnisse passen nicht in einzelne Ziffern-Kaestchen
+    // (jedes Kaestchen fasst genau EIN Zeichen) - dafuer gibt es dann EIN
+    // zusammenhaengendes Eingabefeld ueber die volle Antwortbreite.
+    int fieldCount = calculation.freeformAnswer ? 1 : calculation.answerDigitCount;
+
+    for (int i = 0; i < fieldCount; ++i) {
         QLineEdit *field = new QLineEdit(this);
         field->setObjectName("writtenAnswerDigit");
-        field->setMaxLength(1);
+        if (!calculation.freeformAnswer) field->setMaxLength(1);
         field->setAlignment(Qt::AlignCenter);
         field->setFrame(false);
         field->installEventFilter(this);
@@ -42,43 +47,48 @@ void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
         field->show();
     }
 
-    // Einer-Stelle zuerst: nach Eingabe geht der Fokus nach LINKS (i-1)
-    for (int i = 0; i < answerFields.size(); ++i) {
-        connect(answerFields[i], &QLineEdit::textChanged, this, [this, i](const QString &text) {
-            if (text.length() == 1 && i - 1 >= 0) {
-                answerFields[i - 1]->setFocus();
-            }
-        });
+    if (!calculation.freeformAnswer) {
+        // Einer-Stelle zuerst: nach Eingabe geht der Fokus nach LINKS (i-1)
+        for (int i = 0; i < answerFields.size(); ++i) {
+            connect(answerFields[i], &QLineEdit::textChanged, this, [this, i](const QString &text) {
+                if (text.length() == 1 && i - 1 >= 0) {
+                    answerFields[i - 1]->setFocus();
+                }
+            });
+        }
     }
 
     recomputeLayout();
     update();
 }
 
-void WrittenGridWidget::showWorksheet(const QVector<WrittenCalculation> &calculations)
+void WrittenGridWidget::showWorksheet(const QVector<Task> &tasks)
 {
     for (QLineEdit *field : answerFields) field->deleteLater();
     answerFields.clear();
     totalDigitColumns = 0;   // deaktiviert die normale Einzel-Aufgaben-Zeichnung
 
-    worksheetCalculations = calculations;
+    worksheetTasks = tasks;
     update();
 }
 
 void WrittenGridWidget::recomputeLayout()
 {
-    if (totalDigitColumns == 0) return;
-
+    // squareSize/pageRows werden IMMER neu berechnet (auch im Aufgabenblatt-Modus,
+    // wo totalDigitColumns == 0 ist) - sonst bleibt beim Fenster-Resize eine veraltete
+    // Kaestchengroesse stehen, weil sich sonst nichts mehr unterhalb ausfuehrt.
     squareSize = static_cast<double>(width()) / PAGE_COLUMNS;
     pageRows = static_cast<int>(height() / squareSize);
+
+    if (totalDigitColumns == 0) return;
 
     int taskColumnsInSquares;
     int taskRowsInSquares;
 
     if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
-        int operandDigitsTotal = 0;
-        for (const QString &op : calculation.operands) operandDigitsTotal += op.length();
-        taskColumnsInSquares = operandDigitsTotal + (calculation.operands.size() - 1) + 1 + calculation.answerDigitCount;
+        // expression enthaelt bereits das abschliessende "=" - jedes Zeichen (auch
+        // Leerzeichen, die als blanko Kaestchen mitgezaehlt werden) belegt eine Spalte.
+        taskColumnsInSquares = calculation.expression.length() + calculation.answerDigitCount;
         taskRowsInSquares = 2;
     } else {
         taskColumnsInSquares = totalDigitColumns + 1;
@@ -102,9 +112,12 @@ void WrittenGridWidget::layoutAnswerFields()
     double cellHeight = squareSize * 2.0;
 
     if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
-        int operandDigitsTotal = 0;
-        for (const QString &op : calculation.operands) operandDigitsTotal += op.length();
-        int answerStartCol = operandDigitsTotal + (calculation.operands.size() - 1) + 1;
+        int answerStartCol = calculation.expression.length();   // expression endet bereits auf "=", direkt danach kommt die Antwort
+
+        if (calculation.freeformAnswer) {
+            placeFreeformField(answerStartCol, 0, cellWidth, cellHeight);
+            return;
+        }
 
         for (int i = 0; i < answerFields.size(); ++i) {
             double x = gridXOffset + (answerStartCol + i) * cellWidth;
@@ -118,6 +131,12 @@ void WrittenGridWidget::layoutAnswerFields()
     }
 
     int answerRowIndex = calculation.operands.size();
+
+    if (calculation.freeformAnswer) {
+        placeFreeformField(1, answerRowIndex, cellWidth, cellHeight);   // Spalte 1: gleich hinter der Operator-Spalte
+        return;
+    }
+
     int answerStartColumn = totalDigitColumns - calculation.answerDigitCount;
 
     for (int i = 0; i < answerFields.size(); ++i) {
@@ -129,6 +148,19 @@ void WrittenGridWidget::layoutAnswerFields()
         answerFields[i]->setStyleSheet(QString("font-size: %1px; font-family: \"%2\"; background: transparent; border: none;")
                                            .arg(static_cast<int>(cellHeight * 0.65)).arg(numberFontFamily));
     }
+}
+
+// Ein einzelnes, zusammenhaengendes Eingabefeld ueber "answerDigitCount" Kaestchen-
+// breiten - fuer Antworten, die nicht in Ein-Zeichen-Kaestchen passen (Komma, Minus).
+void WrittenGridWidget::placeFreeformField(int startCol, int rowIndex, double cellWidth, double cellHeight)
+{
+    double x = gridXOffset + startCol * cellWidth;
+    double y = gridYOffset + rowIndex * cellHeight;
+    double w = cellWidth * calculation.answerDigitCount;
+    answerFields[0]->setGeometry(QRect(static_cast<int>(x), static_cast<int>(y),
+                                       static_cast<int>(w), static_cast<int>(cellHeight)));
+    answerFields[0]->setStyleSheet(QString("font-size: %1px; font-family: \"%2\"; background: transparent; border: none;")
+                                       .arg(static_cast<int>(cellHeight * 0.55)).arg(numberFontFamily));
 }
 
 void WrittenGridWidget::resizeEvent(QResizeEvent *event)
@@ -154,7 +186,7 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     }
 
     // --- Aufgabenblatt: mehrere Aufgaben ueber die Seite verteilt ---
-    if (!worksheetCalculations.isEmpty()) {
+    if (!worksheetTasks.isEmpty()) {
         QFont font = numberFontFamily.isEmpty() ? this->font() : QFont(numberFontFamily);
         font.setPointSizeF(squareSize * 0.9);
         painter.setFont(font);
@@ -164,19 +196,17 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
         double cellW = squareSize * 8;
         double cellH = squareSize * 4;
 
-        for (int i = 0; i < worksheetCalculations.size(); ++i) {
+        for (int i = 0; i < worksheetTasks.size(); ++i) {
             int row = i / columns;
             int col = i % columns;
             QRectF cellR(col * cellW, row * cellH, cellW, cellH);
 
-            QString line;
-            for (int j = 0; j < worksheetCalculations[i].operands.size(); ++j) {
-                line += worksheetCalculations[i].operands[j];
-                if (j < worksheetCalculations[i].operands.size() - 1) {
-                    line += " " + worksheetCalculations[i].operatorSymbol + " ";
-                }
-            }
-            line += " = ____";
+            // "expression" deckt mittlerweile ALLE Aufgabenarten ab (auch Ketten,
+            // Potenz/Wurzel/Log) - nur Finanz-/Einheiten-Textaufgaben haben keine und
+            // fallen auf den normalen promptText zurueck (siehe task.h-Kommentar).
+            const Task &task = worksheetTasks[i];
+            QString line = task.writtenCalculation.expression.isEmpty() ? task.promptText : task.writtenCalculation.expression;
+            if (line.endsWith('=')) line += " ____";   // Platz zum Ausfuellen mit der Hand
 
             painter.drawText(cellR, Qt::AlignCenter, line);
         }
@@ -195,22 +225,18 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     painter.setPen(QPen(Qt::white, 1.5));
 
     if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
+        // Generischer Ausdruck (deckt einfache Aufgaben genauso ab wie verkettete
+        // Ketten oder Potenz/Wurzel/Log, die kein festes Operanden-Schema haben) -
+        // jedes Zeichen bekommt ein eigenes Kaestchen, Leerzeichen bleiben als
+        // Luecke sichtbar (sorgt z.B. bei "20% von 60 =" fuer Lesbarkeit).
         int col = 0;
-        for (int i = 0; i < calculation.operands.size(); ++i) {
-            const QString &op = calculation.operands[i];
-            for (QChar ch : op) {
+        for (QChar ch : calculation.expression) {
+            if (ch != ' ') {
                 QRectF cellR(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
                 painter.drawText(cellR, Qt::AlignCenter, QString(ch));
-                col++;
             }
-            if (i < calculation.operands.size() - 1) {
-                QRectF opRect(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
-                painter.drawText(opRect, Qt::AlignCenter, calculation.operatorSymbol);
-                col++;
-            }
+            col++;
         }
-        QRectF eqRect(gridXOffset + col * cellWidth, gridYOffset, cellWidth, cellHeight);
-        painter.drawText(eqRect, Qt::AlignCenter, "=");
         return;
     }
 

@@ -10,13 +10,18 @@ struct AnswerSlot {
     double expectedValue;
 };
 
-// Beschreibt, WIE eine Aufgabe als schriftliches Rechenverfahren dargestellt wird.
-// operands.isEmpty() == true bedeutet "nicht anwendbar", dann bleibt die alte,
-// einzeilige Darstellung (fuer Kopfrechnen-Aufgaben) aktiv.
+// Beschreibt, WIE eine Aufgabe im Karo-Raster (WrittenGridWidget) dargestellt wird.
+// expression.isEmpty() == true bedeutet "nicht anwendbar" (z.B. Finanz-/Einheiten-
+// Textaufgaben), dann bleibt die alte, einzeilige Label-Darstellung aktiv.
 struct WrittenCalculation {
-    QStringList operands;      // z.B. {"47", "38"} fuer 47 + 38
-    QString operatorSymbol;     // "+", "-", "×"
-    int answerDigitCount = 0;    // wie viele Ziffern-Kaestchen fuer das Ergebnis
+    QStringList operands;      // NUR fuer Stacked-Modus (schriftliches Rechnen mit EINEM Operator), z.B. {"47", "38"}
+    QString operatorSymbol;     // "+", "-", "×", "÷" - nur fuer Stacked-Modus
+    QString expression;          // fertiger Ausdruck INKLUSIVE abschliessendem "=" fuer SingleLine, z.B. "47 + 38 =" oder "4^2 + 8 ="
+                                  // (auch fuer verkettete Aufgaben und Potenz/Wurzel/Log geeignet, da hier kein festes
+                                  // Operanden-Schema existiert - siehe TaskFragment-Kommentar in task_fragment.h)
+    int answerDigitCount = 0;    // Zeichenanzahl der erwarteten Antwort (Ziffern, ggf. ein '.' oder '-')
+    bool freeformAnswer = false; // true = EIN zusammenhaengendes Eingabefeld statt einzelner Ziffern-Kaestchen
+                                  // (noetig bei Kommazahlen oder negativen Ergebnissen - ein Kaestchen fasst nur 1 Zeichen)
     enum class DisplayMode { Stacked, SingleLine };
     DisplayMode mode = DisplayMode::Stacked;
 };

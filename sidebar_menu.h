@@ -24,12 +24,7 @@ public:
 
 signals:
     void settingsClicked();
-    void mentalMathModeChanged(bool enabled);
     void activeSelectionsChanged(const QVector<QPair<QString, QString>> &active);
-    void testWrittenGridRequested();
-    void worksheetModeChanged(bool enabled);
-    void calculatorModeChanged(bool enabled);
-    void hardTaskModeChanged(bool enabled);
 
 protected:
     void leaveEvent(QEvent *event) override;
@@ -50,11 +45,6 @@ private:
     QTimer *collapseTimer;
     QVBoxLayout *layout;
     QPushButton *settingsButton;
-    QPushButton *mentalMathButton;
-    QPushButton *testGridButton;
-    QPushButton *worksheetButton;
-    QPushButton *calculatorButton;
-    QPushButton *hardTaskButton;
     QVector<CategoryBlock> categoryBlocks;
     QVector<QPair<QString, QString>> activeSelections;
 

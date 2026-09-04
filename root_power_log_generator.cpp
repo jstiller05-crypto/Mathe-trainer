@@ -26,6 +26,13 @@ Task generatePowerTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", fragment.value });
     task.autoAdvance = mentalMath;
 
+    // Potenz hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine.
+    QString answerStr = QString::number(fragment.value);
+    task.writtenCalculation.expression = task.promptText;
+    task.writtenCalculation.answerDigitCount = answerStr.length();
+    task.writtenCalculation.freeformAnswer = answerStr.contains('.');
+    task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
+
     qDebug() << "[Power] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
 }
@@ -64,6 +71,15 @@ Task generateRootTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", fragment.value });
     task.autoAdvance = mentalMath;
 
+    // Wurzel hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine.
+    // Im Nicht-Kopfrechnen-Fall ist das Ergebnis auf 2 Nachkommastellen gerundet
+    // (z.B. 6.86) - dafuer gibt es dann EIN zusammenhaengendes Eingabefeld.
+    QString answerStr = QString::number(fragment.value);
+    task.writtenCalculation.expression = task.promptText;
+    task.writtenCalculation.answerDigitCount = answerStr.length();
+    task.writtenCalculation.freeformAnswer = answerStr.contains('.');
+    task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
+
     qDebug() << "[Root] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
 }
@@ -101,6 +117,13 @@ Task generateLogTask(DifficultyLevel level, bool mentalMath)
     task.promptText = fragment.display + " =";
     task.answers.append({ "", fragment.value });
     task.autoAdvance = mentalMath;
+
+    // Logarithmus hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine.
+    QString answerStr = QString::number(fragment.value);
+    task.writtenCalculation.expression = task.promptText;
+    task.writtenCalculation.answerDigitCount = answerStr.length();
+    task.writtenCalculation.freeformAnswer = answerStr.contains('.');
+    task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
 
     qDebug() << "[Log] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
     return task;

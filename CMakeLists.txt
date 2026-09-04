@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 project(mathe-trainer LANGUAGES CXX)
 
-cmake_minimum_required(VERSION 3.19)
-project(mathe-trainer LANGUAGES CXX)
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
@@ -11,25 +8,17 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 qt_standard_project_setup()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
-
-qt_standard_project_setup()
-
 qt_add_executable(mathe-trainer
     WIN32 MACOSX_BUNDLE
     main.cpp
     mainwindow.cpp
     mainwindow.h
-    mainwindow.ui
     task_generator.cpp
     task_generator.h
     task.h
-    operation.h
     difficulty.h
-    operation.cpp
     session_controller.h
     session_controller.cpp
-    topic.h
     resources.qrc
     sidebar_menu.h
     sidebar_menu.cpp
@@ -39,9 +28,6 @@ qt_add_executable(mathe-trainer
     settings_view.cpp
     symbol_menu.h
     symbol_menu.cpp
-
-
-
     task_fragment.h
     addition_subtraction_generator.h
     addition_subtraction_generator.cpp

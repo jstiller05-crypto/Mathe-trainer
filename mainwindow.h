@@ -9,17 +9,12 @@
 #include "settings_view.h"
 #include "symbol_menu.h"
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
     explicit MainWindow(const QString &numberFontFamily, QWidget *parent = nullptr);
-    ~MainWindow();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -27,7 +22,6 @@ protected:
 private:
     QString numberFontFamily;
 
-    Ui::MainWindow *ui;
     SessionController controller;
     SidebarMenu *sidebar;
     QStackedWidget *stack;

@@ -2,6 +2,7 @@
 #define SETTINGS_VIEW_H
 
 #include <QWidget>
+#include "difficulty.h"
 
 class SettingsView : public QWidget
 {
@@ -12,6 +13,8 @@ public:
 
 signals:
     void classSelected(int schoolClass);
+    void taskModeChanged(TaskMode mode);
+    void worksheetModeChanged(bool enabled);
 };
 
 #endif

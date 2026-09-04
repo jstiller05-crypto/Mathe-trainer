@@ -17,56 +17,9 @@ SidebarMenu::SidebarMenu(QWidget *parent)
     layout->setSpacing(2);
     layout->setContentsMargins(8, 20, 8, 20);
 
-    mentalMathButton = new QPushButton("Σ Kopfrechnen", this);
-    mentalMathButton->setObjectName("mentalMathButton");
-    mentalMathButton->setCheckable(true);
-    mentalMathButton->setChecked(true);
-    mentalMathButton->installEventFilter(this);
-    layout->addWidget(mentalMathButton);
-
-    worksheetButton = new QPushButton("📄 Aufgabenblatt", this);
-    worksheetButton->setObjectName("worksheetButton");
-    worksheetButton->setCheckable(true);
-    worksheetButton->installEventFilter(this);
-    layout->addWidget(worksheetButton);
-    connect(worksheetButton, &QPushButton::toggled, this, [this](bool checked) {
-        emit worksheetModeChanged(checked);
-    });
-
-    calculatorButton = new QPushButton("🖩 mit Taschenrechner", this);
-    calculatorButton->setObjectName("calculatorButton");
-    calculatorButton->setCheckable(true);
-    calculatorButton->installEventFilter(this);
-    layout->addWidget(calculatorButton);
-    connect(calculatorButton, &QPushButton::toggled, this, [this](bool checked) {
-        emit calculatorModeChanged(checked);
-        qDebug() << "[Sidebar] Taschenrechner-Modus (Platzhalter):" << checked;
-    });
-
-    hardTaskButton = new QPushButton("⚡ Schwere Aufgabe", this);
-    hardTaskButton->setObjectName("hardTaskButton");
-    hardTaskButton->setCheckable(true);
-    hardTaskButton->installEventFilter(this);
-    layout->addWidget(hardTaskButton);
-    connect(hardTaskButton, &QPushButton::toggled, this, [this](bool checked) {
-        emit hardTaskModeChanged(checked);
-        qDebug() << "[Sidebar] Schwere-Aufgabe-Modus (Platzhalter):" << checked;
-    });
-
-    connect(mentalMathButton, &QPushButton::toggled, this, [this](bool checked) {
-        emit mentalMathModeChanged(checked);
-        qDebug() << "[Sidebar] Kopfrechnen-Modus:" << checked;
-    });
-
-    testGridButton = new QPushButton("🧪 Test: Raster", this);
-    testGridButton->setObjectName("testGridButton");
-    testGridButton->installEventFilter(this);
-    layout->addWidget(testGridButton);
-
-    connect(testGridButton, &QPushButton::clicked, this, [this]() {
-        emit testWrittenGridRequested();
-    });
-
+    // Kopfrechnen/Taschenrechner/Schwere Aufgabe und Aufgabenblatt sind in die
+    // Einstellungen umgezogen (siehe settings_view.cpp) - die Sidebar zeigt nur noch
+    // Aufgaben-Kategorien, analog zur Klassenstufe, die schon vorher dort war.
     buildCategoryTree();
 
     layout->addStretch();
@@ -112,10 +65,6 @@ SidebarMenu::SidebarMenu(QWidget *parent)
         }
         QPushButton:disabled {
             color: rgba(255, 255, 255, 90);
-        }
-        QPushButton#mentalMathButton:checked {
-            border: 1px solid #5B8DEF;
-            background-color: rgba(91, 141, 239, 40);
         }
         QPushButton#subCategoryButton:checked {
             border: 1px solid #5B8DEF;

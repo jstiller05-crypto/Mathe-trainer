@@ -15,4 +15,13 @@ constexpr DifficultyLevel Advanced     = 75;   // ca. Klasse 9
 constexpr DifficultyLevel Expert       = 100;  // ca. Klasse 10+
 }
 
+// Der Modus ist UNABHAENGIG vom Level (Klassenstufe) - er bestimmt, WELCHE ART
+// von Aufgabe innerhalb des aktuellen Levels erzeugt wird. In der Sidebar sind
+// die drei Werte ueber sich gegenseitig ausschliessende Buttons waehlbar.
+enum class TaskMode {
+    MentalMath,   // "Kopfrechnen": kleine, rundungsfreundliche Zahlen, kurze Aufgaben, schnelles Weiterspringen
+    Calculator,   // "mit Taschenrechner": groessere/unrundere Zahlen, die man kaum noch im Kopf loest
+    Hard          // "Schwere Aufgabe": laengere Ketten (mehr verkettete Operatoren), mehr Zeit zum Loesen
+};
+
 #endif

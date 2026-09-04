@@ -15,14 +15,13 @@ TaskView::TaskView(QWidget *parent)
     promptLabel = new QLabel("", this);
     promptLabel->setObjectName("taskLabel");
     promptLabel->setAlignment(Qt::AlignCenter);
+    promptLabel->setWordWrap(true);   // NEU - laengere Ketten (z.B. "Schwere Aufgabe") sollen umbrechen statt abgeschnitten zu werden
     mainLayout->addWidget(promptLabel);
 
     answerRowWidget = new QWidget(this);
     new QHBoxLayout(answerRowWidget);   // Layout wird erzeugt, aber vorerst leer - Felder kommen dynamisch dazu
     answerRowWidget->layout()->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(answerRowWidget);
-
-    // task_view.cpp - Konstruktor, ERSETZE den Teil ab "checkButton = ..." bis zum Ende
 
     feedbackLabel = new QLabel("", this);
     feedbackLabel->setObjectName("feedbackLabel");
@@ -50,8 +49,6 @@ TaskView::TaskView(QWidget *parent)
     symbolMenuButton->setObjectName("symbolMenuButton");
     bottomRow->addWidget(symbolMenuButton);
     connect(symbolMenuButton, &QPushButton::clicked, this, &TaskView::symbolMenuToggled);
-
-    // task_view.cpp - in der Button-Reihe (bottomRow) ergänzen, neben checkButton/symbolMenuButton
 
     skipButton = new QPushButton("⏭", this);
     skipButton->setObjectName("skipButton");
@@ -86,16 +83,30 @@ void TaskView::insertSymbolAtFocus(const QString &symbol)
 
 void TaskView::showTask(const Task &task)
 {
-    bool isWritten = !task.writtenCalculation.operands.isEmpty();
+    bool isWritten = !task.writtenCalculation.expression.isEmpty();
 
     promptLabel->setVisible(!isWritten);
     answerRowWidget->setVisible(!isWritten);
+    // feedbackLabel liegt (wie promptLabel/answerRowWidget) über die volle Breite im
+    // Layout und damit über dem Raster, das per lower() eigentlich dahinter liegen soll -
+    // sichtbar blieb es trotzdem und hat Klicks auf die Raster-Antwortfelder geschluckt,
+    // wo immer sich beide (beide vertikal zentriert) ueberlappt haben.
+    feedbackLabel->setVisible(!isWritten);
     writtenGrid->setVisible(isWritten);
 
     if (isWritten) {
         writtenGrid->showCalculation(task.writtenCalculation);
     } else {
         promptLabel->setText(task.promptText);
+
+        // Laengere Ketten (v.a. im "Schwere Aufgabe"-Modus) sollen nicht ueber den
+        // Bildschirmrand hinauswachsen - die Schriftgroesse sinkt daher mit der
+        // Textlaenge. setWordWrap() alleine wuerde bei sehr langen Ketten sonst zu
+        // vielen Zeilen bei weiterhin riesiger Schrift fuehren.
+        int textLength = task.promptText.length();
+        int pointSize = textLength > 45 ? 18 : (textLength > 28 ? 24 : 32);
+        promptLabel->setStyleSheet(QString("font-size: %1pt;").arg(pointSize));
+
         rebuildAnswerFields(task.answers);
     }
 
@@ -141,12 +152,13 @@ QVector<QString> TaskView::currentAnswerTexts() const
     return texts;
 }
 
-void TaskView::showWorksheet(const QVector<WrittenCalculation> &calculations)
+void TaskView::showWorksheet(const QVector<Task> &tasks)
 {
     promptLabel->setVisible(false);
     answerRowWidget->setVisible(false);
+    feedbackLabel->setVisible(false);
     writtenGrid->setVisible(true);
-    writtenGrid->showWorksheet(calculations);
+    writtenGrid->showWorksheet(tasks);
 }
 
 void TaskView::showAnswerColors(const QVector<bool> &correctness)
@@ -165,7 +177,13 @@ void TaskView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     if (writtenGrid) {
-        writtenGrid->setGeometry(rect());   // füllt IMMER die komplette TaskView-Flaeche
+        // Gleicher linker Rand wie bei mainLayout (siehe Konstruktor, setContentsMargins(60, ...)) -
+        // die Sidebar ist ein raised Overlay (kein Layout-Element) und liegt IMMER (auch
+        // eingeklappt) ueber dem linken Rand von TaskView. Ohne diesen Rand zentriert das
+        // Raster ueber die VOLLE Breite und Aufgaben/Antwortfelder landen teils dahinter -
+        // dort sind sie unsichtbar UND nicht klickbar, weil die Sidebar die Klicks abfaengt.
+        QRect gridArea = rect().adjusted(60, 0, 0, 0);
+        writtenGrid->setGeometry(gridArea);
     }
 }
 

@@ -14,7 +14,7 @@ public:
     explicit WrittenGridWidget(QWidget *parent = nullptr);
 
     void showCalculation(const WrittenCalculation &calc);
-    void showWorksheet(const QVector<WrittenCalculation> &calculations);
+    void showWorksheet(const QVector<Task> &tasks);
     void setNumberFont(const QString &family);
 
     QString currentAnswerText() const;
@@ -32,7 +32,7 @@ protected:
 
 private:
     WrittenCalculation calculation;
-    QVector<WrittenCalculation> worksheetCalculations;
+    QVector<Task> worksheetTasks;
     QVector<QLineEdit*> answerFields;
     QString numberFontFamily;
 
@@ -44,6 +44,7 @@ private:
 
     void recomputeLayout();
     void layoutAnswerFields();
+    void placeFreeformField(int startCol, int rowIndex, double cellWidth, double cellHeight);
 };
 
 #endif

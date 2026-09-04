@@ -6,6 +6,6 @@
 #include "difficulty.h"
 #include <QString>
 
-Task generateTask(DifficultyLevel level, const QVector<QPair<QString, QString>> &activeSelections, bool mentalMath);
+Task generateTask(DifficultyLevel level, const QVector<QPair<QString, QString>> &activeSelections, TaskMode mode);
 
 #endif

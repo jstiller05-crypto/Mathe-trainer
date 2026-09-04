@@ -40,9 +40,12 @@ Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", static_cast<double>(first + second) });
     task.autoAdvance = mentalMath;
 
+    QString answerStr = QString::number(first + second);
     task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
     task.writtenCalculation.operatorSymbol = "+";
-    task.writtenCalculation.answerDigitCount = QString::number(first + second).length();
+    task.writtenCalculation.expression = task.promptText;
+    task.writtenCalculation.answerDigitCount = answerStr.length();
+    task.writtenCalculation.freeformAnswer = false;   // Summe zweier positiver Zahlen ist immer eine positive Ganzzahl
     task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
     qDebug() << "[Addition] mentalMath:" << mentalMath << "|" << task.promptText;
@@ -68,20 +71,26 @@ Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
     int upperBound = negativeResultsAllowed(level) ? maxNumber : first;
     int second = mentalMath ? generateMentalMathFriendlyNumber(upperBound) : (rand() % (upperBound + 1));
 
+    int result = first - second;
+
     Task task;
     task.ruleName = "Subtraction";
     task.promptText = QString("%1 - %2 =").arg(first).arg(second);
-    task.answers.append({ "", static_cast<double>(first - second) });
+    task.answers.append({ "", static_cast<double>(result) });
     task.autoAdvance = mentalMath;
+
+    QString answerStr = QString::number(result);
+    task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
+    task.writtenCalculation.operatorSymbol = "-";
+    task.writtenCalculation.expression = task.promptText;
+    task.writtenCalculation.answerDigitCount = answerStr.length();
+    // Ein Ziffern-Kaestchen fasst nur 1 Zeichen - bei negativem Ergebnis (ab Level 31 erlaubt)
+    // gibt es deshalb EIN zusammenhaengendes Feld statt einzelner Kaestchen fuers Vorzeichen.
+    task.writtenCalculation.freeformAnswer = answerStr.contains('-');
+    task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
     qDebug() << "[Subtraction] mentalMath:" << mentalMath << "|" << task.promptText;
     return task;
-
-    if (!mentalMath) {
-        task.writtenCalculation.operands = { QString::number(first), QString::number(second) };
-        task.writtenCalculation.operatorSymbol = "-";
-        task.writtenCalculation.answerDigitCount = QString::number(first - second).length();
-    }
 }
 
 TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath)

@@ -9,8 +9,8 @@
 // OHNE dass seine urspruengliche Darstellung verloren geht.
 //
 // Beispiel: der Wurzel/Potenz-Generator erzeugt fuer "4 hoch 2" das Fragment
-// { value = 16, display = "4²" } - der WERT ist 16, aber ANGEZEIGT wird "4²",
-// nicht "16". So kann eine spaetere Aufgabe wie "4² + 8" entstehen, ohne dass
+// { value = 16, display = "4^2" } - der WERT ist 16, aber ANGEZEIGT wird "4^2",
+// nicht "16". So kann eine spaetere Aufgabe wie "4^2 + 8" entstehen, ohne dass
 // die Potenz-Schreibweise verloren geht.
 struct TaskFragment {
     double value;      // reiner Zahlenwert, fuer die Weiterverwendung als Operand

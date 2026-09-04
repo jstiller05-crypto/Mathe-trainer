@@ -5,7 +5,7 @@
 #include "difficulty.h"
 #include <QStringList>
 
-Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, bool mentalMath);
+Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, TaskMode mode);
 QStringList arithmeticAvailableSubcategories(DifficultyLevel level);
 
 #endif

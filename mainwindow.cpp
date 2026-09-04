@@ -1,5 +1,4 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
 #include "arithmetic_unit.h"
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -9,11 +8,15 @@
 
 MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
     , controller(Preset::Beginner)
     , numberFontFamily(numberFontFamily)
 {
-    ui->setupUi(this);
+    // Kein .ui-Designer-Layout mehr - die komplette UI wird hier programmatisch
+    // aufgebaut (Sidebar, TaskView, SettingsView als Overlay/Stack), das alte
+    // ui_mainwindow.h/mainwindow.ui haette sowieso nur einen sofort wieder
+    // ersetzten centralwidget plus eine leere, ungenutzte Menu-/Statusbar geliefert.
+    setWindowTitle("Mathe Trainer");
+    resize(900, 650);
 
     bool isDarkMode = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
     QString accentColor = "#5B8DEF";
@@ -60,8 +63,11 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     symbolMenu->repositionAt(stack->width(), stack->height());
     symbolMenu->raise();
 
-    connect(sidebar, &SidebarMenu::mentalMathModeChanged, this, [this](bool enabled) {
-        controller.setMentalMathMode(enabled);
+    connect(settingsView, &SettingsView::taskModeChanged, this, [this](TaskMode mode) {
+        stack->setCurrentWidget(taskView);
+        sidebar->raise();
+        symbolMenu->raise();
+        controller.setTaskMode(mode);
         controller.startNewTask();
         showNewTask();
     });
@@ -92,28 +98,23 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         showNewTask();
     });
 
-    connect(sidebar, &SidebarMenu::testWrittenGridRequested, this, [this]() {
-        Task sample;
-        sample.ruleName = "Test";
-        sample.writtenCalculation.operands = { "47", "138" };
-        sample.writtenCalculation.operatorSymbol = "+";
-        sample.writtenCalculation.answerDigitCount = 3;
-        sample.answers.append({ "", 185.0 });
-        sample.autoAdvance = false;
-
+    connect(settingsView, &SettingsView::worksheetModeChanged, this, [this](bool enabled) {
+        // Der Button sitzt jetzt in den Einstellungen - ohne diesen Wechsel wuerde man
+        // beim Anklicken auf der Einstellungen-Seite stehen bleiben und nichts sehen,
+        // weil das Aufgabenblatt (wie jede Aufgabe) in der TaskView angezeigt wird.
         stack->setCurrentWidget(taskView);
         sidebar->raise();
         symbolMenu->raise();
-        taskView->showTask(sample);
-    });
 
-    connect(sidebar, &SidebarMenu::worksheetModeChanged, this, [this](bool enabled) {
         if (!enabled) { showNewTask(); return; }
 
-        QVector<WrittenCalculation> sheet;
+        // 9 unterschiedliche Aufgaben aus den aktuell aktiven Kategorien/dem aktuellen
+        // Modus - jede einzeln ueber startNewTask() erzeugt, damit die gleiche Vielfalt
+        // entsteht wie beim normalen Durchklicken einzelner Aufgaben.
+        QVector<Task> sheet;
         for (int i = 0; i < 9; ++i) {
             controller.startNewTask();
-            sheet.append(controller.getCurrentTask().writtenCalculation);
+            sheet.append(controller.getCurrentTask());
         }
         taskView->showWorksheet(sheet);
     });
@@ -125,11 +126,6 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     connect(symbolMenu, &SymbolMenu::symbolSelected, taskView, &TaskView::insertSymbolAtFocus);
 
     showNewTask();
-}
-
-MainWindow::~MainWindow()
-{
-    delete ui;
 }
 
 int MainWindow::classToLevel(int schoolClass) const
