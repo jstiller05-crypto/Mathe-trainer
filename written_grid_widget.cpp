@@ -1,6 +1,8 @@
 #include "written_grid_widget.h"
+#include "feedback_colors.h"
 #include <QPainter>
 #include <QKeyEvent>
+#include <QApplication>
 #include <algorithm>
 
 static constexpr int PAGE_COLUMNS = 32;
@@ -17,10 +19,21 @@ void WrittenGridWidget::setNumberFont(const QString &family)
     update();
 }
 
+void WrittenGridWidget::setInkColor(const QColor &color)
+{
+    // Analog zu setNumberFont(): MainWindow kennt (ueber QGuiApplication::styleHints()
+    // ->colorScheme()) bereits das aktuelle Theme und reicht die passende Textfarbe
+    // hier durch - vorher war Qt::white in paintEvent() fest verdrahtet, im hellen
+    // Theme also praktisch unsichtbar auf hellem Hintergrund.
+    inkColor = color;
+    update();
+}
+
 void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
 {
     worksheetTasks.clear();   // Aufgabenblatt-Ansicht beenden, falls aktiv
     calculation = calc;
+    solutionText.clear();   // Rueckmeldung der VORHERIGEN Aufgabe darf hier nicht mehr stehen
 
     for (QLineEdit *field : answerFields) field->deleteLater();
     answerFields.clear();
@@ -48,11 +61,16 @@ void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
     }
 
     if (!calculation.freeformAnswer) {
-        // Einer-Stelle zuerst: nach Eingabe geht der Fokus nach LINKS (i-1)
+        // Schriftliches Rechnen (Stacked) rechnet von der Einer-Stelle aus - nach
+        // Eingabe geht der Fokus deshalb nach LINKS (i-1). Beim Kopfrechnen
+        // (SingleLine) schreibt man dagegen ganz normal von links nach rechts (i+1).
+        bool rightToLeft = (calculation.mode == WrittenCalculation::DisplayMode::Stacked);
         for (int i = 0; i < answerFields.size(); ++i) {
-            connect(answerFields[i], &QLineEdit::textChanged, this, [this, i](const QString &text) {
-                if (text.length() == 1 && i - 1 >= 0) {
-                    answerFields[i - 1]->setFocus();
+            connect(answerFields[i], &QLineEdit::textChanged, this, [this, i, rightToLeft](const QString &text) {
+                if (text.length() != 1) return;
+                int nextIndex = rightToLeft ? (i - 1) : (i + 1);
+                if (nextIndex >= 0 && nextIndex < answerFields.size()) {
+                    answerFields[nextIndex]->setFocus();
                 }
             });
         }
@@ -74,32 +92,44 @@ void WrittenGridWidget::showWorksheet(const QVector<Task> &tasks)
 
 void WrittenGridWidget::recomputeLayout()
 {
-    // squareSize/pageRows werden IMMER neu berechnet (auch im Aufgabenblatt-Modus,
-    // wo totalDigitColumns == 0 ist) - sonst bleibt beim Fenster-Resize eine veraltete
-    // Kaestchengroesse stehen, weil sich sonst nichts mehr unterhalb ausfuehrt.
-    squareSize = static_cast<double>(width()) / PAGE_COLUMNS;
+    // Spalten-/Zeilenbedarf der aktuellen Aufgabe VORAB ermitteln (0, wenn keine
+    // Einzelaufgabe aktiv ist, z.B. im Aufgabenblatt-Modus) - wird gleich gebraucht,
+    // um zu entscheiden, ob die normale Kaestchengroesse ausreicht.
+    int taskColumnsInSquares = 0;
+    int taskRowsInSquares = 0;
+
+    if (totalDigitColumns != 0) {
+        if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
+            // expression enthaelt bereits das abschliessende "=" - jedes Zeichen (auch
+            // Leerzeichen, die als blanko Kaestchen mitgezaehlt werden) belegt eine Spalte.
+            taskColumnsInSquares = calculation.expression.length() + calculation.answerDigitCount;
+            taskRowsInSquares = 2;
+        } else {
+            taskColumnsInSquares = totalDigitColumns + 1;
+            taskRowsInSquares = (calculation.operands.size() + 1) * 2;
+        }
+    }
+
+    // Normalerweise entspricht eine Kaestchen-Seite 1/32 der Breite (wie kariertes
+    // Papier). Braucht eine Aufgabe (z.B. eine lange Kette im "Schwere Aufgabe"-Modus)
+    // MEHR als 32 Spalten, wuerde sie sonst mit negativem Offset nach links aus dem
+    // sichtbaren Bereich rutschen - deshalb werden die Kaestchen dann verkleinert,
+    // sodass die komplette Aufgabe exakt in die Breite passt statt geklemmt zu werden.
+    squareSize = (taskColumnsInSquares > PAGE_COLUMNS)
+                     ? static_cast<double>(width()) / taskColumnsInSquares
+                     : static_cast<double>(width()) / PAGE_COLUMNS;
     pageRows = static_cast<int>(height() / squareSize);
 
     if (totalDigitColumns == 0) return;
 
-    int taskColumnsInSquares;
-    int taskRowsInSquares;
-
-    if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
-        // expression enthaelt bereits das abschliessende "=" - jedes Zeichen (auch
-        // Leerzeichen, die als blanko Kaestchen mitgezaehlt werden) belegt eine Spalte.
-        taskColumnsInSquares = calculation.expression.length() + calculation.answerDigitCount;
-        taskRowsInSquares = 2;
-    } else {
-        taskColumnsInSquares = totalDigitColumns + 1;
-        taskRowsInSquares = (calculation.operands.size() + 1) * 2;
-    }
-
-    int startColSquares = (PAGE_COLUMNS - taskColumnsInSquares) / 2;
-    int startRowSquares = (pageRows - taskRowsInSquares) / 2;
+    // std::max(0, ...) verhindert bei beiden Achsen einen negativen Offset (vorher
+    // war nur die Zeilen-Achse abgesichert) - bei Verkleinerung oben ist der Bedarf
+    // zwar rechnerisch gedeckt, das ist trotzdem ein guenstiger Sicherheitsnetz-Fall.
+    int startColSquares = std::max(0, (PAGE_COLUMNS - taskColumnsInSquares) / 2);
+    int startRowSquares = std::max(0, (pageRows - taskRowsInSquares) / 2);
 
     gridXOffset = startColSquares * squareSize;
-    gridYOffset = std::max(0, startRowSquares) * squareSize;
+    gridYOffset = startRowSquares * squareSize;
 
     layoutAnswerFields();
 }
@@ -176,7 +206,12 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
 
     // --- Hintergrund-Karo ueber die KOMPLETTE Flaeche ---
-    QPen gridPen(QColor(150, 150, 150, 90), 1);
+    // Aus der Ink-Farbe abgeleitet (statt fest QColor(150,150,150,90)) - so passt der
+    // Kontrast zur Linie automatisch zum aktuellen Theme statt fuer beide nur "okay
+    // genug" zu sein: helle Linien auf dunklem, dunkle Linien auf hellem Hintergrund.
+    QColor gridLineColor = inkColor;
+    gridLineColor.setAlpha(70);
+    QPen gridPen(gridLineColor, 1);
     painter.setPen(gridPen);
     for (double x = 0; x <= width(); x += squareSize) {
         painter.drawLine(QPointF(x, 0), QPointF(x, height()));
@@ -190,7 +225,7 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
         QFont font = numberFontFamily.isEmpty() ? this->font() : QFont(numberFontFamily);
         font.setPointSizeF(squareSize * 0.9);
         painter.setFont(font);
-        painter.setPen(QPen(Qt::white, 1.2));
+        painter.setPen(QPen(inkColor, 1.2));
 
         int columns = 3;
         double cellW = squareSize * 8;
@@ -222,7 +257,11 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
     QFont font = numberFontFamily.isEmpty() ? this->font() : QFont(numberFontFamily);
     font.setPointSizeF(cellHeight * 0.5);
     painter.setFont(font);
-    painter.setPen(QPen(Qt::white, 1.5));
+    painter.setPen(QPen(inkColor, 1.5));
+
+    // Zeile, in der die Rueckmeldung (Punkt 4) spaeter unterhalb der Aufgabe
+    // landet - je nach Modus reicht die Aufgabe unterschiedlich weit nach unten.
+    double solutionRow = 1.0;
 
     if (calculation.mode == WrittenCalculation::DisplayMode::SingleLine) {
         // Generischer Ausdruck (deckt einfache Aufgaben genauso ab wie verkettete
@@ -237,37 +276,57 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
             }
             col++;
         }
-        return;
-    }
+    } else {
+        for (int row = 0; row < calculation.operands.size(); ++row) {
+            QString padded = calculation.operands[row].rightJustified(totalDigitColumns, ' ');
+            bool isLastOperand = (row == calculation.operands.size() - 1);
 
-    for (int row = 0; row < calculation.operands.size(); ++row) {
-        QString padded = calculation.operands[row].rightJustified(totalDigitColumns, ' ');
-        bool isLastOperand = (row == calculation.operands.size() - 1);
+            if (isLastOperand) {
+                QRectF opRect(gridXOffset, gridYOffset + row * cellHeight, cellWidth, cellHeight);
+                painter.drawText(opRect, Qt::AlignCenter, calculation.operatorSymbol);
+            }
 
-        if (isLastOperand) {
-            QRectF opRect(gridXOffset, gridYOffset + row * cellHeight, cellWidth, cellHeight);
-            painter.drawText(opRect, Qt::AlignCenter, calculation.operatorSymbol);
+            for (int col = 0; col < totalDigitColumns; ++col) {
+                QChar ch = padded[col];
+                if (ch == ' ') continue;
+                QRectF cellR(gridXOffset + (col + 1) * cellWidth, gridYOffset + row * cellHeight, cellWidth, cellHeight);
+                painter.drawText(cellR, Qt::AlignCenter, QString(ch));
+            }
         }
 
-        for (int col = 0; col < totalDigitColumns; ++col) {
-            QChar ch = padded[col];
-            if (ch == ' ') continue;
-            QRectF cellR(gridXOffset + (col + 1) * cellWidth, gridYOffset + row * cellHeight, cellWidth, cellHeight);
-            painter.drawText(cellR, Qt::AlignCenter, QString(ch));
-        }
+        int totalColumns = totalDigitColumns + 1;
+        double lineY = gridYOffset + calculation.operands.size() * cellHeight;
+        QPen linePen(inkColor, 2);
+        painter.setPen(linePen);
+        painter.drawLine(QPointF(gridXOffset, lineY), QPointF(gridXOffset + totalColumns * cellWidth, lineY));
+
+        solutionRow = calculation.operands.size() + 1.0;
     }
 
-    int totalColumns = totalDigitColumns + 1;
-    double lineY = gridYOffset + calculation.operands.size() * cellHeight;
-    QPen linePen(Qt::white, 2);
-    painter.setPen(linePen);
-    painter.drawLine(QPointF(gridXOffset, lineY), QPointF(gridXOffset + totalColumns * cellWidth, lineY));
+    // --- Rueckmeldung (Punkt 4): "Richtig!" bzw. "Falsch - richtig waere ..." direkt
+    // unterhalb der Aufgabe im Raster statt im (bei Raster-Aufgaben ausgeblendeten)
+    // feedbackLabel - dadurch entsteht kein Ueberlagerungs-/Klick-Problem wie vorher.
+    if (!solutionText.isEmpty()) {
+        QRectF solutionRect(0, gridYOffset + solutionRow * cellHeight, width(), cellHeight);
+        QFont solutionFont = font;
+        solutionFont.setPointSizeF(cellHeight * 0.4);
+        painter.setFont(solutionFont);
+        painter.setPen(QPen(solutionCorrect ? inkColor : QColor(kWrongAnswerColor), 1.5));
+        painter.drawText(solutionRect, Qt::AlignCenter, solutionText);
+    }
 }
 
 QString WrittenGridWidget::currentAnswerText() const
 {
+    // Sobald EIN Kaestchen leer ist, gilt die ganze Antwort als ungueltig - vorher
+    // wurde ein leeres Kaestchen stillschweigend durch "0" ersetzt, wodurch eine
+    // komplett leer gelassene Aufgabe als "richtig" durchging, wenn das Ergebnis
+    // zufaellig 0 war, und ein einzelnes ausgelassenes Kaestchen die Ziffern verschob.
     QString result;
-    for (QLineEdit *field : answerFields) result += field->text().isEmpty() ? "0" : field->text();
+    for (QLineEdit *field : answerFields) {
+        if (field->text().isEmpty()) return QString();
+        result += field->text();
+    }
     return result;
 }
 
@@ -278,15 +337,41 @@ void WrittenGridWidget::setInputEnabled(bool enabled)
 
 void WrittenGridWidget::showAnswerColor(bool correct)
 {
-    QString color = correct ? "#2ecc71" : "#e74c3c";
+    QString color = correct ? kCorrectAnswerColor : kWrongAnswerColor;
     for (QLineEdit *field : answerFields) {
         field->setStyleSheet(field->styleSheet() + QString("border: 2px solid %1;").arg(color));
     }
 }
 
+void WrittenGridWidget::showSolution(const QString &text, bool correct)
+{
+    solutionText = text;
+    solutionCorrect = correct;
+    update();
+}
+
+void WrittenGridWidget::insertSymbolAtFocus(const QString &symbol)
+{
+    // Uebernommen aus TaskView::insertSymbolAtFocus() (Punkt 4) - answerFields gab es
+    // dort nur fuer die jetzt entfallene Nicht-Raster-Darstellung, das Sonderzeichen-
+    // Menue muss deshalb hier ins Raster-eigene answerFields schreiben.
+    QLineEdit *focused = qobject_cast<QLineEdit*>(QApplication::focusWidget());
+
+    if (focused && answerFields.contains(focused)) {
+        focused->insert(symbol);
+    } else if (!answerFields.isEmpty()) {
+        answerFields.first()->insert(symbol);   // Fallback, falls kein Feld fokussiert ist
+    }
+}
+
 void WrittenGridWidget::focusFirstDigit()
 {
-    if (!answerFields.isEmpty()) answerFields.last()->setFocus();
+    if (answerFields.isEmpty()) return;
+
+    // Startfeld haengt wie die Schreibrichtung vom Darstellungsmodus ab: Stacked
+    // beginnt bei der letzten (= Einer-)Stelle, SingleLine ganz normal beim ersten Feld.
+    bool rightToLeft = (calculation.mode == WrittenCalculation::DisplayMode::Stacked);
+    (rightToLeft ? answerFields.last() : answerFields.first())->setFocus();
 }
 
 bool WrittenGridWidget::eventFilter(QObject *watched, QEvent *event)

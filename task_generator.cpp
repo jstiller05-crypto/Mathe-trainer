@@ -10,10 +10,9 @@ Task generateTask(DifficultyLevel level, const QVector<QPair<QString, QString>> 
         if (selection.first == "Arithmetik") arithmeticSubs.append(selection.second);
     }
 
-    if (!arithmeticSubs.isEmpty()) {
-        return generateArithmeticTask(level, arithmeticSubs, mode);
-    }
-
-    qWarning() << "[TaskGenerator] Keine unterstuetzte Kategorie aktiv - Fallback";
-    return generateArithmeticTask(level, { "Addition & Subtraktion" }, mode);
+    // Eine leere Liste ist jetzt ein gueltiger, gewollter Zustand (siehe SidebarMenu -
+    // alle Haekchen abgewaehlt bedeutet "alle verfuegbaren Typen"), keine Fehlerlage
+    // mehr - arithmetic_unit.cpp behandelt das selbst (generateArithmeticTask()).
+    qDebug() << "[TaskGenerator] Arithmetik-Unterkategorien aus Auswahl:" << arithmeticSubs;
+    return generateArithmeticTask(level, arithmeticSubs, mode);
 }

@@ -2,7 +2,6 @@
 #include "addition_subtraction_generator.h"
 #include "percent_mult_div_generator.h"
 #include "root_power_log_generator.h"
-#include "finance_generator.h"
 #include "units_generator.h"
 #include <cstdlib>
 #include <algorithm>
@@ -24,7 +23,7 @@ static TaskFragment fragmentForSubcategory(const QString &subcategory, Difficult
 
 static bool supportsFragment(const QString &subcategory)
 {
-    return subcategory != "Finanzen & Einheiten" && subcategory != "Prozentrechnung";
+    return subcategory != "Größen & Einheiten" && subcategory != "Prozentrechnung";
 }
 
 static Task standaloneForSubcategory(const QString &subcategory, DifficultyLevel level, bool smallNumbers)
@@ -38,9 +37,8 @@ static Task standaloneForSubcategory(const QString &subcategory, DifficultyLevel
     if (subcategory == "Wurzel") return generateRootTask(level, smallNumbers);
     if (subcategory == "Logarithmus") return generateLogTask(level, smallNumbers);
 
-    if (subcategory == "Finanzen & Einheiten") {
-        bool useFinance = (rand() % 2 == 0);
-        return useFinance ? generateFinanceTask(level) : generateUnitsTask(level);
+    if (subcategory == "Größen & Einheiten") {
+        return generateUnitsTask(level);
     }
 
     qWarning() << "[ArithmeticUnit] Unbekannte Unterkategorie:" << subcategory << "- Fallback";
@@ -75,15 +73,19 @@ Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubc
     bool smallNumbers = (mode == TaskMode::MentalMath);
     bool shortChain = (mode != TaskMode::Hard);
 
-    if (activeSubcategories.isEmpty()) {
-        qWarning() << "[ArithmeticUnit] Keine Unterkategorie aktiv - Fallback auf Addition";
-        return generateAdditionTask(level, smallNumbers);
+    // Leere Auswahl bedeutet "alle fuer das aktuelle Level verfuegbaren Typen" statt
+    // eines stillen Rueckfalls auf Addition - z.B. wenn in der Sidebar bewusst alle
+    // Haekchen entfernt wurden (das ist jetzt erlaubt, siehe SidebarMenu).
+    QStringList subcategories = activeSubcategories;
+    if (subcategories.isEmpty()) {
+        subcategories = arithmeticAvailableSubcategories(level);
+        qDebug() << "[ArithmeticUnit] Keine Unterkategorie aktiv - nutze alle verfuegbaren:" << subcategories;
     }
 
-    qDebug() << "[ArithmeticUnit] Aktive Unterkategorien:" << activeSubcategories << "| Modus:" << static_cast<int>(mode);
+    qDebug() << "[ArithmeticUnit] Aktive Unterkategorien:" << subcategories << "| Modus:" << static_cast<int>(mode);
 
     QStringList fragmentCapable;
-    for (const QString &sub : activeSubcategories) {
+    for (const QString &sub : subcategories) {
         if (supportsFragment(sub)) fragmentCapable.append(sub);
     }
 
@@ -91,7 +93,7 @@ Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubc
     qDebug() << "[ArithmeticUnit] Kettenlaenge gewaehlt:" << chainLength;
 
     if (chainLength <= 1) {
-        QString chosen = activeSubcategories[rand() % activeSubcategories.size()];
+        QString chosen = subcategories[rand() % subcategories.size()];
         qDebug() << "[ArithmeticUnit] Keine Verschmelzung, gewaehlt:" << chosen;
         return standaloneForSubcategory(chosen, level, smallNumbers);
     }
@@ -129,7 +131,7 @@ Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubc
 QStringList arithmeticAvailableSubcategories(DifficultyLevel level)
 {
     QStringList available;
-    available << "Addition" << "Subtraktion" << "Multiplikation" << "Division" << "Prozentrechnung" << "Finanzen & Einheiten";
+    available << "Addition" << "Subtraktion" << "Multiplikation" << "Division" << "Prozentrechnung" << "Größen & Einheiten";
 
     if (level >= RootPowerLogCriteria::PowerMinLevel) available << "Potenz";
     if (level >= RootPowerLogCriteria::RootMinLevel) available << "Wurzel";

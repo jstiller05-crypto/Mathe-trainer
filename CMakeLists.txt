@@ -17,6 +17,7 @@ qt_add_executable(mathe-trainer
     task_generator.h
     task.h
     difficulty.h
+    feedback_colors.h
     session_controller.h
     session_controller.cpp
     resources.qrc
@@ -35,8 +36,6 @@ qt_add_executable(mathe-trainer
     root_power_log_generator.cpp
     percent_mult_div_generator.h
     percent_mult_div_generator.cpp
-    finance_generator.h
-    finance_generator.cpp
     units_generator.h
     units_generator.cpp
     arithmetic_unit.h

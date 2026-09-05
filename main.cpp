@@ -6,6 +6,8 @@
 #include <QIcon>
 #include <QFont>
 #include <QDebug>
+#include <cstdlib>
+#include <ctime>
 
 // Eigene Hilfsfunktion: laedt eine Schriftart, gibt den Familiennamen zurueck
 // (oder einen Ersatzwert, falls es fehlschlaegt) - faengt Fehler ab statt abzustuerzen.
@@ -42,6 +44,13 @@ bool loadAppIcon(QApplication &app, MainWindow &window, const QString &path)
 
 int main(int argc, char *argv[])
 {
+    // Ohne srand() startet rand() (genutzt in allen Generatoren) bei jedem Programmstart
+    // mit demselben Standard-Seed (1) - die App wuerde also bei jedem Start exakt dieselbe
+    // Aufgabenfolge zeigen. Einmaliges Seeden mit der aktuellen Uhrzeit reicht hier aus.
+    // (Die sauberere Umstellung auf QRandomGenerator in allen Generatoren ist ein
+    // separater, spaeterer Schritt - hier bewusst NICHT mit erledigt.)
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
     QApplication app(argc, argv);
 
     // --- Schriftarten laden: Text-Schrift und Zahlen-Schrift getrennt ---

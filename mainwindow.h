@@ -30,6 +30,7 @@ private:
     SymbolMenu *symbolMenu;
 
     int classToLevel(int schoolClass) const;
+    QString formatSolution(const Task &task) const;
     void showNewTask();
     void onAnswerSubmitted();
     void onSkipRequested();

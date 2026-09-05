@@ -2,10 +2,19 @@
 #include <QMouseEvent>
 #include <QDebug>
 
+// implemented = false -> Button ist sichtbar, aber dauerhaft deaktiviert (Tooltip
+// "Generator folgt noch"). So kann man schon sehen, was geplant ist, ohne dass ein
+// Klick still auf Addition zurueckfaellt (siehe standaloneForSubcategory() in
+// arithmetic_unit.cpp), weil es fuer diese Unterkategorie noch keinen Generator gibt.
+struct SubcategoryDefinition {
+    QString name;
+    bool implemented;
+};
+
 struct CategoryDefinition {
     QString name;
-    QStringList subcategories;
-    bool enabled;
+    QVector<SubcategoryDefinition> subcategories;
+    bool enabled;   // ganze Kategorie (Trigonometrie etc. ist komplett noch nicht gebaut)
 };
 
 SidebarMenu::SidebarMenu(QWidget *parent)
@@ -45,6 +54,18 @@ SidebarMenu::SidebarMenu(QWidget *parent)
         if (expanded) toggleExpanded();
     });
 
+    // Sammelpuffer fuer activeSelectionsChanged: mehrere Klicks kurz hintereinander
+    // (z.B. schnelles Durchklicken mehrerer Unterkategorien) sollen nur EINE
+    // Neugenerierung ausloesen statt bei jedem einzelnen Klick sofort eine neue
+    // Aufgabe zu bauen - das hat vorher spuerbar geruckelt.
+    selectionDebounceTimer = new QTimer(this);
+    selectionDebounceTimer->setSingleShot(true);
+    selectionDebounceTimer->setInterval(200);
+    connect(selectionDebounceTimer, &QTimer::timeout, this, [this]() {
+        qDebug() << "[Sidebar] activeSelectionsChanged (Sammelpuffer abgelaufen):" << activeSelections;
+        emit activeSelectionsChanged(activeSelections);
+    });
+
     setAttribute(Qt::WA_StyledBackground, true);
     setStyleSheet(R"(
         SidebarMenu {
@@ -76,12 +97,19 @@ SidebarMenu::SidebarMenu(QWidget *parent)
 void SidebarMenu::buildCategoryTree()
 {
     QVector<CategoryDefinition> categories = {
-        { "Arithmetik", { "Addition", "Subtraktion", "Multiplikation", "Division", "Prozentrechnung", "Potenz", "Wurzel", "Logarithmus", "Finanzen & Einheiten" }, true },
-        { "Trigonometrie", { "Kopfrechenaufgaben", "Winkelberechnung", "Seitenberechnung", "Dreiecksberechnung", "Sinus-/Kosinussatz", "Einheitskreis" }, false },
-        { "Geometrie", { "Kopfrechenaufgaben", "Volumenberechnung", "Flächeninhalt", "Mantel/Oberfläche", "Umfang", "Ähnlichkeit/Maßstab", "Koordinatengeometrie" }, false },
-        { "Algebra", { "Lineare Funktionen", "Parabeln", "Exponentielle Funktionen", "Gleichungen lösen", "Ungleichungen", "Lineare Gleichungssysteme" }, false },
-        { "Stochastik", { "Wahrscheinlichkeit", "Bedingte Wahrscheinlichkeit", "Kombinatorik", "Statistische Kennwerte" }, false },
-        { "Analysis", { "Ableitungen", "Integrale" }, false }
+        { "Arithmetik", {
+              { "Addition", true }, { "Subtraktion", true }, { "Multiplikation", true }, { "Division", true },
+              { "Prozentrechnung", true }, { "Potenz", true }, { "Wurzel", true }, { "Logarithmus", true },
+              { "Größen & Einheiten", true },
+              // Platzhalter (Punkt 5) - Generatoren fehlen noch, Buttons bleiben sichtbar+deaktiviert.
+              { "Bruchrechnung", false }, { "Dezimalzahlen", false }, { "Klammern & Terme", false },
+              { "Negative Zahlen", false }, { "Teilbarkeit (ggT/kgV)", false }, { "Finanzrechnung", false }
+          }, true },
+        { "Trigonometrie", { {"Kopfrechenaufgaben",false}, {"Winkelberechnung",false}, {"Seitenberechnung",false}, {"Dreiecksberechnung",false}, {"Sinus-/Kosinussatz",false}, {"Einheitskreis",false} }, false },
+        { "Geometrie", { {"Kopfrechenaufgaben",false}, {"Volumenberechnung",false}, {"Flächeninhalt",false}, {"Mantel/Oberfläche",false}, {"Umfang",false}, {"Ähnlichkeit/Maßstab",false}, {"Koordinatengeometrie",false} }, false },
+        { "Algebra", { {"Lineare Funktionen",false}, {"Parabeln",false}, {"Exponentielle Funktionen",false}, {"Gleichungen lösen",false}, {"Ungleichungen",false}, {"Lineare Gleichungssysteme",false} }, false },
+        { "Stochastik", { {"Wahrscheinlichkeit",false}, {"Bedingte Wahrscheinlichkeit",false}, {"Kombinatorik",false}, {"Statistische Kennwerte",false} }, false },
+        { "Analysis", { {"Ableitungen",false}, {"Integrale",false} }, false }
     };
 
     for (const CategoryDefinition &def : categories) {
@@ -98,44 +126,45 @@ void SidebarMenu::buildCategoryTree()
         subLayout->setContentsMargins(16, 0, 0, 0);
         subLayout->setSpacing(2);
 
-        for (const QString &sub : def.subcategories) {
-            QPushButton *subButton = new QPushButton(sub, block.subContainer);
+        for (const SubcategoryDefinition &subcat : def.subcategories) {
+            QPushButton *subButton = new QPushButton(subcat.name, block.subContainer);
             subButton->setObjectName("subCategoryButton");
-            subButton->setEnabled(def.enabled);
+            subButton->setEnabled(def.enabled && subcat.implemented);
             subButton->setCheckable(true);
-            subButton->setProperty("subcategoryName", sub);   // NEU - fuer zuverlaessiges Wiedererkennen
+            subButton->setProperty("subcategoryName", subcat.name);   // NEU - fuer zuverlaessiges Wiedererkennen
+            subButton->setProperty("implemented", subcat.implemented);   // NEU - fuer setAvailableSubcategories()
 
-            if (def.name == "Arithmetik" && sub == "Addition") {   // <- "Addition & Subtraktion" -> "Addition"
+            if (!subcat.implemented) {
+                subButton->setToolTip(tr("Generator folgt noch"));
+                subLayout->addWidget(subButton);
+                block.subButtons.append(subButton);
+                continue;   // Platzhalter nimmt nicht an Auswahl/activeSelections teil
+            }
+
+            if (def.name == "Arithmetik" && subcat.name == "Addition") {
                 subButton->setChecked(true);
             }
 
             QString categoryName = def.name;
-            connect(subButton, &QPushButton::toggled, this, [this, categoryName, sub, subButton](bool checked) {
-                QPair<QString, QString> key(categoryName, sub);
-
-                if (!checked && activeSelections.size() == 1 && activeSelections.contains(key)) {
-                    qDebug() << "[Sidebar] Letzte aktive Auswahl kann nicht abgeschaltet werden:" << key;
-                    subButton->blockSignals(true);
-                    subButton->setChecked(true);
-                    subButton->blockSignals(false);
-                    return;
-                }
+            QString subName = subcat.name;
+            connect(subButton, &QPushButton::toggled, this, [this, categoryName, subName](bool checked) {
+                QPair<QString, QString> key(categoryName, subName);
 
                 if (checked) {
                     if (!activeSelections.contains(key)) activeSelections.append(key);
                 } else {
                     activeSelections.removeAll(key);
                 }
-                emit activeSelectionsChanged(activeSelections);
-                qDebug() << "[Sidebar] Aktive Auswahl:" << activeSelections;
+                qDebug() << "[Sidebar] Aktive Auswahl geaendert:" << activeSelections;
+
+                if (updatingSelections) return;   // setAvailableSubcategories() emittiert selbst am Ende
+
+                // Sammelpuffer statt Sofort-Emit (Punkt 2b) - siehe selectionDebounceTimer weiter oben.
+                selectionDebounceTimer->start();
             });
 
             subLayout->addWidget(subButton);
             block.subButtons.append(subButton);   // NEU - fuer setAvailableSubcategories() gebraucht
-
-            if (def.name == "Arithmetik" && sub == "Addition & Subtraktion") {
-                subButton->setChecked(true);
-            }
         }
 
         block.subContainer->setVisible(false);
@@ -154,20 +183,36 @@ void SidebarMenu::buildCategoryTree()
 
 void SidebarMenu::setAvailableSubcategories(const QString &category, const QStringList &availableSubcategories)
 {
+    // Waehrend dieser Schleife unterdrueckt updatingSelections das Sofort-/Sammelpuffer-
+    // Signal aus dem toggled-Lambda oben (Punkt 2b) - vorher hat setChecked(false) hier
+    // bei JEDEM betroffenen Button einzeln (und verschachtelt) eine Neugenerierung
+    // ausgeloest. Stattdessen wird ganz am Ende genau EINMAL emittiert.
+    updatingSelections = true;
+
     for (CategoryBlock &block : categoryBlocks) {
         if (block.fullName != category) continue;
 
         for (QPushButton *btn : block.subButtons) {
+            // Platzhalter (Punkt 5) tauchen nie in arithmeticAvailableSubcategories() auf
+            // und wuerden hier sonst dauerhaft ausgeblendet - sie bleiben unabhaengig von
+            // der Klassenstufe sichtbar und deaktiviert.
+            if (!btn->property("implemented").toBool()) continue;
+
             QString subName = btn->property("subcategoryName").toString();
             bool isAvailable = availableSubcategories.contains(subName);
 
             btn->setVisible(isAvailable);
 
             if (!isAvailable && btn->isChecked()) {
-                btn->setChecked(false);   // loest automatisch das toggled-Signal aus, entfernt es aus activeSelections
+                btn->setChecked(false);   // loest toggled() aus, aktualisiert activeSelections (aber ohne Signal, s.o.)
             }
         }
     }
+
+    updatingSelections = false;
+    selectionDebounceTimer->stop();   // ein noch laufender Sammelpuffer von vorherigen Klicks ist jetzt ueberholt
+    qDebug() << "[Sidebar] activeSelectionsChanged (setAvailableSubcategories, einmalig):" << activeSelections;
+    emit activeSelectionsChanged(activeSelections);
 }
 
 int SidebarMenu::barWidth() const

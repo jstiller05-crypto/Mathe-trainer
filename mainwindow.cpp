@@ -5,6 +5,8 @@
 #include <QDebug>
 #include <QTimer>
 #include <QResizeEvent>
+#include <QLocale>
+#include <QColor>
 
 MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     : QMainWindow(parent)
@@ -20,6 +22,11 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
 
     bool isDarkMode = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
     QString accentColor = "#5B8DEF";
+    // Diese eine Stelle bleibt die Quelle der Wahrheit fuers Theme (Punkt 1) - die
+    // Textfarbe wird sowohl im Stylesheet unten (%2) als auch an TaskView/WrittenGrid-
+    // Widget weitergereicht, damit das Karo-Raster im hellen Theme nicht mehr fest
+    // weiss (und damit praktisch unsichtbar) zeichnet.
+    QString textColor = isDarkMode ? "#FFFFFF" : "#1E1E1E";
 
     QString styleSheet = QString(R"(
         QMainWindow { background-color: %1; }
@@ -36,7 +43,7 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         QPushButton { background-color: %3; border-radius: 6px; padding: 8px 16px; color: white; border: none; }
         QPushButton:hover { background-color: %4; }
     )").arg(isDarkMode ? "#1E1E1E" : "#FAFAFA")
-                             .arg(isDarkMode ? "#FFFFFF" : "#1E1E1E")
+                             .arg(textColor)
                              .arg(accentColor)
                              .arg("#4A7BDB")
                              .arg(numberFontFamily);   // NEU - %5
@@ -46,6 +53,7 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     stack = new QStackedWidget(this);
     taskView = new TaskView(this);
     taskView->setNumberFontFamily(numberFontFamily);
+    taskView->setInkColor(QColor(textColor));
     settingsView = new SettingsView(this);
 
     stack->addWidget(taskView);
@@ -133,6 +141,28 @@ int MainWindow::classToLevel(int schoolClass) const
     return (schoolClass - 3) * 10 + 1;
 }
 
+// Formatiert die erwartete(n) Loesung(en) einer Aufgabe fuer die "Falsch - richtig
+// waere ..."-Rueckmeldung. QLocale::system() sorgt fuer ein Komma statt Punkt (auf
+// einem deutschen System) - toString(double, 'f', 2) liefert dafuer aber IMMER genau
+// 2 Nachkommastellen (z.B. "42,00"), die fuer eine ganze Zahl ueberfluessigen Nullen
+// (und ein dann ueberfluessiges Komma) werden deshalb danach manuell abgeschnitten.
+QString MainWindow::formatSolution(const Task &task) const
+{
+    QLocale locale = QLocale::system();
+    QString decimalPoint = locale.decimalPoint();
+
+    QStringList values;
+    for (const AnswerSlot &slot : task.answers) {
+        QString formatted = locale.toString(slot.expectedValue, 'f', 2);
+        if (formatted.contains(decimalPoint)) {
+            while (formatted.endsWith('0')) formatted.chop(1);
+            if (formatted.endsWith(decimalPoint)) formatted.chop(1);
+        }
+        values.append(formatted);
+    }
+    return values.join(", ");
+}
+
 void MainWindow::showNewTask()
 {
     taskView->showTask(controller.getCurrentTask());
@@ -141,14 +171,30 @@ void MainWindow::showNewTask()
 
 void MainWindow::onAnswerSubmitted()
 {
-    QVector<bool> correctness = controller.checkAnswers(taskView->currentAnswerTexts());
+    QVector<QString> inputs = taskView->currentAnswerTexts();
+    QVector<bool> correctness = controller.checkAnswers(inputs);
     taskView->showAnswerColors(correctness);
 
-    bool allCorrect = std::all_of(correctness.begin(), correctness.end(), [](bool c) { return c; });
-    taskView->showFeedbackText(allCorrect ? "Correct!" : "Not quite right.");
+    bool allCorrect = !correctness.isEmpty() && std::all_of(correctness.begin(), correctness.end(), [](bool c) { return c; });
+    // Ein leeres Feld (siehe WrittenGridWidget::currentAnswerText(), Punkt 3) ist
+    // "ungueltig", nicht "falsch geloest" - dafuer gibt es eine eigene Rueckmeldung
+    // statt einer Loesungsangabe, die dann ja niemand eingetippt hat.
+    bool anyEmpty = std::any_of(inputs.begin(), inputs.end(), [](const QString &s) { return s.isEmpty(); });
+
+    if (allCorrect) {
+        taskView->showFeedbackText(tr("Richtig!"), true);
+    } else if (anyEmpty) {
+        taskView->showFeedbackText(tr("Da fehlt noch eine Ziffer."), false);
+    } else {
+        taskView->showFeedbackText(tr("Falsch – richtig wäre %1").arg(formatSolution(controller.getCurrentTask())), false);
+    }
     taskView->setInputEnabled(false);
 
-    bool autoAdvance = controller.getCurrentTask().autoAdvance;
+    // Bei falscher Antwort NIE automatisch weiterspringen (auch nicht im Kopfrechnen-
+    // Modus) - sonst ist die gerade angezeigte Loesung nach 1,5 Sekunden schon wieder
+    // weg, bevor man sie gelesen hat. autoAdvance gilt deshalb nur noch zusaetzlich zur
+    // ohnehin schon aufgabenabhaengigen Einstellung (siehe Task::autoAdvance).
+    bool autoAdvance = allCorrect && controller.getCurrentTask().autoAdvance;
 
     if (autoAdvance) {
         QTimer::singleShot(1500, this, [this]() {

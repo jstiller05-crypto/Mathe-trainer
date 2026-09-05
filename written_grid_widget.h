@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QVector>
 #include <QLineEdit>
+#include <QColor>
 #include "task.h"
 
 class WrittenGridWidget : public QWidget
@@ -16,11 +17,14 @@ public:
     void showCalculation(const WrittenCalculation &calc);
     void showWorksheet(const QVector<Task> &tasks);
     void setNumberFont(const QString &family);
+    void setInkColor(const QColor &color);
 
     QString currentAnswerText() const;
     void setInputEnabled(bool enabled);
     void showAnswerColor(bool correct);
+    void showSolution(const QString &text, bool correct);
     void focusFirstDigit();
+    void insertSymbolAtFocus(const QString &symbol);
 
 signals:
     void answerSubmitted();
@@ -35,6 +39,9 @@ private:
     QVector<Task> worksheetTasks;
     QVector<QLineEdit*> answerFields;
     QString numberFontFamily;
+    QColor inkColor = Qt::white;   // Vorgabewert wie bisher, bis MainWindow setInkColor() aufruft
+    QString solutionText;           // Rueckmeldetext (Punkt 4), leer = nichts anzeigen
+    bool solutionCorrect = true;    // steuert Ink- vs. Fehlerfarbe fuer solutionText
 
     int totalDigitColumns = 0;
     int pageRows = 0;

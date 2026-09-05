@@ -11,8 +11,12 @@ struct AnswerSlot {
 };
 
 // Beschreibt, WIE eine Aufgabe im Karo-Raster (WrittenGridWidget) dargestellt wird.
-// expression.isEmpty() == true bedeutet "nicht anwendbar" (z.B. Finanz-/Einheiten-
-// Textaufgaben), dann bleibt die alte, einzeilige Label-Darstellung aktiv.
+// Aktuell setzt JEDER Generator eine expression (TaskView zeigt deshalb ausnahmslos
+// jede Aufgabe im Raster an - die fruehere einzeilige Label-Darstellung ist entfallen).
+// expression.isEmpty() bleibt trotzdem als Absicherung bestehen, falls eine kuenftige
+// Kategorie (z.B. Trigonometrie/Geometrie) mal eine reine Wortaufgabe ohne Raster-
+// taugliches Format braucht - siehe den Fallback auf promptText im Aufgabenblatt-
+// Zweig von WrittenGridWidget::paintEvent().
 struct WrittenCalculation {
     QStringList operands;      // NUR fuer Stacked-Modus (schriftliches Rechnen mit EINEM Operator), z.B. {"47", "38"}
     QString operatorSymbol;     // "+", "-", "×", "÷" - nur fuer Stacked-Modus
@@ -31,7 +35,7 @@ struct Task {
     QString promptText;
     QVector<AnswerSlot> answers;
     bool autoAdvance = true;
-    WrittenCalculation writtenCalculation;   // leer = normale Kopfrechnen-Darstellung
+    WrittenCalculation writtenCalculation;   // wird von TaskView immer ueber das Raster angezeigt
 };
 
 #endif

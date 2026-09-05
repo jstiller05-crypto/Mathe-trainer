@@ -43,6 +43,8 @@ private:
     bool expanded = false;
     QPropertyAnimation *widthAnimation;
     QTimer *collapseTimer;
+    QTimer *selectionDebounceTimer;   // sammelt mehrere schnelle Klicks zu EINER Neugenerierung
+    bool updatingSelections = false;   // true waehrend setAvailableSubcategories() laeuft - unterdrueckt Zwischen-Signale
     QVBoxLayout *layout;
     QPushButton *settingsButton;
     QVector<CategoryBlock> categoryBlocks;
