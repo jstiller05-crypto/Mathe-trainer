@@ -82,3 +82,13 @@ CMakeLists.txt.user*
 .uic/
 /build*/
 /.qtcreator/
+
+# Entfernte Dateileichen (Codebase-Aufraeumung) - bewusst geloescht, sollen bei
+# einem versehentlichen Neuanlegen (z.B. durch Qt Creator/den Designer) nicht
+# wieder unbeabsichtigt eingecheckt werden.
+/mainwindow.ui
+/operation.h
+/operation.cpp
+/topic.h
+/finance_generator.h
+/finance_generator.cpp

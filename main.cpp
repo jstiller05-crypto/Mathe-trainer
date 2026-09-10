@@ -1,4 +1,7 @@
 #include "mainwindow.h"
+#include "arithmetic_unit.h"
+#include "divisibility_generator.h"
+#include "geometry_unit.h"
 #include <QApplication>
 #include <QFontDatabase>
 #include <QStyleHints>
@@ -50,6 +53,15 @@ int main(int argc, char *argv[])
     // (Die sauberere Umstellung auf QRandomGenerator in allen Generatoren ist ein
     // separater, spaeterer Schritt - hier bewusst NICHT mit erledigt.)
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    // QT_NO_DEBUG ist im Release-Build definiert (CMake setzt das automatisch je
+    // nach Build-Typ) - der Selbsttest laeuft deshalb nur im Debug-Build, kostet im
+    // fertigen Release also keine Zeit und ist dort nicht mal im Programm enthalten.
+#ifndef QT_NO_DEBUG
+    runCombineSelfTest();
+    runDivisibilitySelfTest();
+    runGeometrySelfTest();
+#endif
 
     QApplication app(argc, argv);
 

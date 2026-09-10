@@ -3,6 +3,16 @@
 #include <cmath>
 #include <QDebug>
 
+// Nur fuer die ANZEIGE/Feldbreite: auf 2 Nachkommastellen gerundete Zeichenkette.
+// Der echte fragment.value/expectedValue bleibt IMMER der volle double-Wert (Punkt 3) -
+// wuerde man schon beim Runden fuer die Anzeige den Wert selbst veraendern, koennten
+// sich bei Ketten aus mehreren gerundeten Gliedern Abweichungen aufsummieren, die
+// groesser als die 0.001-Toleranz in checkAnswers() werden (z.B. √83 + √47).
+static QString roundedDisplayString(double value)
+{
+    return QString::number(std::round(value * 100.0) / 100.0);
+}
+
 static TaskFragment buildPowerFragment(DifficultyLevel level, bool mentalMath)
 {
     bool fullRangeUnlocked = level >= RootPowerLogCriteria::PowerFullMinLevel;
@@ -13,6 +23,7 @@ static TaskFragment buildPowerFragment(DifficultyLevel level, bool mentalMath)
     TaskFragment fragment;
     fragment.value = std::pow(base, exponent);
     fragment.display = QString("%1^%2").arg(base).arg(exponent);
+    fragment.precedence = Precedence::Atom;   // "4^2" ist ein einzelner Wert, keine Verkettung
     return fragment;
 }
 
@@ -54,10 +65,11 @@ static TaskFragment buildRootFragment(DifficultyLevel level, bool mentalMath)
         fragment.display = QString("√%1").arg(operand);
     } else {
         int operand = rand() % 90 + 10;
-        fragment.value = std::round(std::sqrt(operand) * 100.0) / 100.0;
+        fragment.value = std::sqrt(operand);   // voller double-Wert, NICHT gerundet (Punkt 3)
         fragment.display = QString("√%1").arg(operand);
     }
 
+    fragment.precedence = Precedence::Atom;   // "√81" ist ein einzelner Wert, keine Verkettung
     return fragment;
 }
 
@@ -71,13 +83,14 @@ Task generateRootTask(DifficultyLevel level, bool mentalMath)
     task.answers.append({ "", fragment.value });
     task.autoAdvance = mentalMath;
 
-    // Wurzel hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine.
-    // Im Nicht-Kopfrechnen-Fall ist das Ergebnis auf 2 Nachkommastellen gerundet
-    // (z.B. 6.86) - dafuer gibt es dann EIN zusammenhaengendes Eingabefeld.
-    QString answerStr = QString::number(fragment.value);
+    // Wurzel hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine. Im
+    // Nicht-Kopfrechnen-Fall ist das Ergebnis meist irrational (z.B. 6.8556546...) -
+    // fuer die Feldbreite zaehlt trotzdem nur die auf 2 Nachkommastellen gerundete
+    // ANZEIGE (roundedDisplayString), expectedValue oben bleibt der exakte Wert.
+    QString displayStr = roundedDisplayString(fragment.value);
     task.writtenCalculation.expression = task.promptText;
-    task.writtenCalculation.answerDigitCount = answerStr.length();
-    task.writtenCalculation.freeformAnswer = answerStr.contains('.');
+    task.writtenCalculation.answerDigitCount = displayStr.length();
+    task.writtenCalculation.freeformAnswer = displayStr.contains('.');
     task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
 
     qDebug() << "[Root] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;
@@ -101,10 +114,11 @@ static TaskFragment buildLogFragment(DifficultyLevel level, bool mentalMath)
         fragment.display = QString("log(%1)").arg(operand);
     } else {
         int operand = rand() % 9900 + 100;
-        fragment.value = std::round(std::log10(operand) * 100.0) / 100.0;
+        fragment.value = std::log10(operand);   // voller double-Wert, NICHT gerundet (Punkt 3)
         fragment.display = QString("log(%1)").arg(operand);
     }
 
+    fragment.precedence = Precedence::Atom;   // "log(100)" ist ein einzelner Wert, keine Verkettung
     return fragment;
 }
 
@@ -119,10 +133,12 @@ Task generateLogTask(DifficultyLevel level, bool mentalMath)
     task.autoAdvance = mentalMath;
 
     // Logarithmus hat kein Operanden-Schema fuers Stacked-Raster - immer SingleLine.
-    QString answerStr = QString::number(fragment.value);
+    // Fuer die Feldbreite zaehlt nur die auf 2 Nachkommastellen gerundete ANZEIGE,
+    // expectedValue oben bleibt der exakte Wert (siehe roundedDisplayString-Kommentar).
+    QString displayStr = roundedDisplayString(fragment.value);
     task.writtenCalculation.expression = task.promptText;
-    task.writtenCalculation.answerDigitCount = answerStr.length();
-    task.writtenCalculation.freeformAnswer = answerStr.contains('.');
+    task.writtenCalculation.answerDigitCount = displayStr.length();
+    task.writtenCalculation.freeformAnswer = displayStr.contains('.');
     task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
 
     qDebug() << "[Log] Level:" << level << "| mentalMath:" << mentalMath << "|" << task.promptText;

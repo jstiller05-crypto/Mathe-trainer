@@ -1,10 +1,23 @@
 #include "addition_subtraction_generator.h"
 #include <cstdlib>
+#include <algorithm>
 #include <QDebug>
 
 static int maxNumberForLevel(DifficultyLevel level)
 {
     return 20 + level * 20;
+}
+
+// Kopfrechnen-Variante: nutzt dieselbe Formel wie maxNumberForLevel(), aber der Level-Input
+// wird ab Kl.6 (Level 31) gedeckelt -> danach ein Plateau statt weiterem linearen Wachstum.
+// Ohne diesen Deckel wuerde der Zahlenraum bei Kl.10 (Level 71) auf 1440 pro Operand steigen -
+// das ist nicht mehr "im Kopf loesbar" (siehe generator-bench: Kopfrechnen-Addition ging bis
+// Ø 955,79 / Max 2680 hoch). Mit dem Deckel bleibt der Zahlenraum ab Kl.6 konstant bei dem Wert,
+// den Kl.6 selbst schon hatte.
+static int mentalMathMaxNumberForLevel(DifficultyLevel level)
+{
+    constexpr DifficultyLevel PlateauLevel = 31;   // = classToLevel(6)
+    return maxNumberForLevel(std::min(level, PlateauLevel));
 }
 
 static bool negativeResultsAllowed(DifficultyLevel level)
@@ -30,7 +43,7 @@ static int generateOperand(int maxValue, bool mentalMath)
 
 Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
 {
-    int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
+    int maxNumber = mentalMath ? mentalMathMaxNumberForLevel(level) : maxNumberForLevel(level) * 5;
     int first = generateOperand(maxNumber, mentalMath);
     int second = generateOperand(maxNumber, mentalMath);
 
@@ -48,24 +61,25 @@ Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
     task.writtenCalculation.freeformAnswer = false;   // Summe zweier positiver Zahlen ist immer eine positive Ganzzahl
     task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
-    qDebug() << "[Addition] mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Addition] mentalMath:" << mentalMath << "| maxNumber:" << maxNumber << "|" << task.promptText;
     return task;
 }
 
 TaskFragment generateAdditionFragment(DifficultyLevel level, bool mentalMath)
 {
-    int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
+    int maxNumber = mentalMath ? mentalMathMaxNumberForLevel(level) : maxNumberForLevel(level) * 5;
     int value = generateOperand(maxNumber, mentalMath);
 
     TaskFragment fragment;
     fragment.value = value;
     fragment.display = QString::number(value);
+    fragment.precedence = Precedence::Atom;   // einzelne Zahl, nichts zu klammern
     return fragment;
 }
 
 Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
 {
-    int maxNumber = mentalMath ? maxNumberForLevel(level) : maxNumberForLevel(level) * 5;
+    int maxNumber = mentalMath ? mentalMathMaxNumberForLevel(level) : maxNumberForLevel(level) * 5;
     int first = generateOperand(maxNumber, mentalMath);
 
     int upperBound = negativeResultsAllowed(level) ? maxNumber : first;
@@ -89,7 +103,7 @@ Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
     task.writtenCalculation.freeformAnswer = answerStr.contains('-');
     task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
-    qDebug() << "[Subtraction] mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Subtraction] mentalMath:" << mentalMath << "| maxNumber:" << maxNumber << "|" << task.promptText;
     return task;
 }
 
@@ -97,17 +111,4 @@ TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath)
 {
     // Fragment ist einfach ein Zahlenwert - gleiche Logik wie bei Addition
     return generateAdditionFragment(level, mentalMath);
-}
-
-TaskFragment combineFragments(const TaskFragment &a, const TaskFragment &b, bool mentalMath)
-{
-    Q_UNUSED(mentalMath);
-    bool isAddition = (rand() % 2 == 0);
-
-    TaskFragment result;
-    result.value = isAddition ? (a.value + b.value) : (a.value - b.value);
-    result.display = QString("%1 %2 %3").arg(a.display).arg(isAddition ? "+" : "-").arg(b.display);
-
-    qDebug() << "[AdditionSubtraction] Fragmente kombiniert:" << result.display << "=" << result.value;
-    return result;
 }

@@ -4,6 +4,8 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <optional>
+#include "geometry_model.h"
 
 struct AnswerSlot {
     QString label;
@@ -36,6 +38,18 @@ struct Task {
     QVector<AnswerSlot> answers;
     bool autoAdvance = true;
     WrittenCalculation writtenCalculation;   // wird von TaskView immer ueber das Raster angezeigt
+
+    // Nur bei Geometrie-Aufgaben gefuellt (siehe geometry_model.h), sonst
+    // std::nullopt (Standard) - v.a. bei allen bisherigen Arithmetik-Aufgaben. Bewusst
+    // ein OPTIONALES Feld statt eines Pflichtfelds: fuer eine reine Rechenaufgabe wie
+    // "47 + 38 =" ergibt ein geometrisches Modell schlicht keinen Sinn. Ein Pflichtfeld
+    // haette entweder immer ein leeres/bedeutungsloses Modell mitschleppen muessen,
+    // oder man haette bei jedem Zugriff selbst pruefen muessen, ob es "leer" ist (z.B.
+    // ueber points.isEmpty() als Ersatz-Konvention). std::optional macht "nicht
+    // vorhanden" dagegen explizit und typsicher: geometryModel.has_value() (bzw. kurz
+    // "if (task.geometryModel)") sagt eindeutig, ob ueberhaupt ein Modell existiert,
+    // ohne eine eigene Sonderfall-Konvention zu erfinden.
+    std::optional<GeometryModel> geometryModel;
 };
 
 #endif

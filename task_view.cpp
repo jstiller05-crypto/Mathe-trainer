@@ -115,6 +115,13 @@ void TaskView::setInputEnabled(bool enabled)
 void TaskView::setContinueButtonVisible(bool visible)
 {
     continueButton->setVisible(visible);
+
+    // Nach einer falschen Antwort deaktiviert setInputEnabled(false) die Antwortfelder -
+    // deaktivierte Widgets bekommen aber keine Tastenereignisse mehr, der Fokus landet
+    // sonst undefiniert irgendwo. Der Weiter-Button haelt jetzt selbst den Fokus, damit
+    // Enter (QPushButton loest bei Fokus+Enter automatisch clicked() aus) direkt
+    // weiterschaltet - komplett ohne Maus bedienbar.
+    if (visible) continueButton->setFocus();
 }
 
 void TaskView::focusFirstField()

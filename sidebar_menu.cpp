@@ -1,6 +1,8 @@
 #include "sidebar_menu.h"
 #include <QMouseEvent>
 #include <QDebug>
+#include <QScrollArea>
+#include <QFrame>
 
 // implemented = false -> Button ist sichtbar, aber dauerhaft deaktiviert (Tooltip
 // "Generator folgt noch"). So kann man schon sehen, was geplant ist, ohne dass ein
@@ -26,12 +28,32 @@ SidebarMenu::SidebarMenu(QWidget *parent)
     layout->setSpacing(2);
     layout->setContentsMargins(8, 20, 8, 20);
 
+    // Kategorie-Buttons stecken in einer eigenen Scroll-Flaeche statt direkt im
+    // Sidebar-Layout: die Sidebar-Hoehe ist auf die Fensterhoehe begrenzt (siehe
+    // MainWindow), und ohne Scrollbereich hat das Layout die Buttons einer langen
+    // aufgeklappten Kategorie (z.B. Arithmetik) einfach zusammengequetscht - die
+    // Schrift blieb dabei gleich gross und wurde dadurch unlesbar. Jetzt erscheint
+    // stattdessen ein Scrollbalken, sobald der Inhalt nicht mehr reinpasst.
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setStyleSheet("QScrollArea { background: transparent; }");
+    scrollArea->viewport()->setStyleSheet("background: transparent;");
+
+    QWidget *scrollContent = new QWidget(scrollArea);
+    scrollContent->setStyleSheet("background: transparent;");
+    categoryLayout = new QVBoxLayout(scrollContent);
+    categoryLayout->setSpacing(2);
+    categoryLayout->setContentsMargins(0, 0, 0, 0);
+
+    scrollArea->setWidget(scrollContent);
+    layout->addWidget(scrollArea, 1);   // Stretch-Faktor: nimmt den ganzen freien Platz, druekt settingsButton nach unten
+
     // Kopfrechnen/Taschenrechner/Schwere Aufgabe und Aufgabenblatt sind in die
     // Einstellungen umgezogen (siehe settings_view.cpp) - die Sidebar zeigt nur noch
     // Aufgaben-Kategorien, analog zur Klassenstufe, die schon vorher dort war.
     buildCategoryTree();
-
-    layout->addStretch();
 
     settingsButton = new QPushButton("⚙", this);
     settingsButton->setObjectName("settingsButton");
@@ -100,10 +122,10 @@ void SidebarMenu::buildCategoryTree()
         { "Arithmetik", {
               { "Addition", true }, { "Subtraktion", true }, { "Multiplikation", true }, { "Division", true },
               { "Prozentrechnung", true }, { "Potenz", true }, { "Wurzel", true }, { "Logarithmus", true },
-              { "Größen & Einheiten", true },
-              // Platzhalter (Punkt 5) - Generatoren fehlen noch, Buttons bleiben sichtbar+deaktiviert.
-              { "Bruchrechnung", false }, { "Dezimalzahlen", false }, { "Klammern & Terme", false },
-              { "Negative Zahlen", false }, { "Teilbarkeit (ggT/kgV)", false }, { "Finanzrechnung", false }
+              { "Größen & Einheiten", true }, { "Klammern & Terme", true },
+              { "Dezimalzahlen", true }, { "Negative Zahlen", true }, { "Teilbarkeit (ggT/kgV)", true },
+              // Platzhalter - Generatoren fehlen noch, Buttons bleiben sichtbar+deaktiviert.
+              { "Bruchrechnung", false }, { "Finanzrechnung", false }
           }, true },
         { "Trigonometrie", { {"Kopfrechenaufgaben",false}, {"Winkelberechnung",false}, {"Seitenberechnung",false}, {"Dreiecksberechnung",false}, {"Sinus-/Kosinussatz",false}, {"Einheitskreis",false} }, false },
         { "Geometrie", { {"Kopfrechenaufgaben",false}, {"Volumenberechnung",false}, {"Flächeninhalt",false}, {"Mantel/Oberfläche",false}, {"Umfang",false}, {"Ähnlichkeit/Maßstab",false}, {"Koordinatengeometrie",false} }, false },
@@ -119,7 +141,7 @@ void SidebarMenu::buildCategoryTree()
         block.headerButton = new QPushButton(def.name, this);
         block.headerButton->setObjectName("categoryHeader");
         block.headerButton->installEventFilter(this);
-        layout->addWidget(block.headerButton);
+        categoryLayout->addWidget(block.headerButton);
 
         block.subContainer = new QWidget(this);
         QVBoxLayout *subLayout = new QVBoxLayout(block.subContainer);
@@ -168,25 +190,45 @@ void SidebarMenu::buildCategoryTree()
         }
 
         block.subContainer->setVisible(false);
-        layout->addWidget(block.subContainer);
+        categoryLayout->addWidget(block.subContainer);
 
         categoryBlocks.append(block);
 
         int blockIndex = categoryBlocks.size() - 1;
         connect(block.headerButton, &QPushButton::clicked, this, [this, blockIndex]() {
-            CategoryBlock &b = categoryBlocks[blockIndex];
-            b.subVisible = !b.subVisible;
-            b.subContainer->setVisible(b.subVisible && expanded);
+            CategoryBlock &clicked = categoryBlocks[blockIndex];
+            bool willOpen = !clicked.subVisible;
+
+            // Akkordeon: es soll immer nur eine Kategorie gleichzeitig aufgeklappt
+            // sein - sonst wird die Liste schnell laenger, als noetig waere.
+            for (CategoryBlock &other : categoryBlocks) {
+                if (&other == &clicked) continue;
+                if (other.subVisible) {
+                    other.subVisible = false;
+                    other.subContainer->setVisible(false);
+                }
+            }
+
+            clicked.subVisible = willOpen;
+            clicked.subContainer->setVisible(willOpen && expanded);
         });
     }
+
+    categoryLayout->addStretch();   // Kategorien bleiben oben, statt sich ueber die ganze Scroll-Flaeche zu verteilen
 }
 
 void SidebarMenu::setAvailableSubcategories(const QString &category, const QStringList &availableSubcategories)
 {
-    // Waehrend dieser Schleife unterdrueckt updatingSelections das Sofort-/Sammelpuffer-
-    // Signal aus dem toggled-Lambda oben (Punkt 2b) - vorher hat setChecked(false) hier
-    // bei JEDEM betroffenen Button einzeln (und verschachtelt) eine Neugenerierung
-    // ausgeloest. Stattdessen wird ganz am Ende genau EINMAL emittiert.
+    // Emittiert bewusst KEIN activeSelectionsChanged mehr (Punkt 1). Vorher hat das
+    // den classSelected-Handler in MainWindow dazu gebracht, ZWEIMAL hintereinander
+    // eine Aufgabe zu generieren (einmal hier per Signal, einmal direkt danach explizit
+    // im Handler) - die erste wurde dabei sofort wieder verworfen. Aufrufer holen sich
+    // die aktuelle Auswahl jetzt stattdessen explizit ueber activeSelectionList() ab,
+    // NACHDEM diese Methode zurueckgekehrt ist, und generieren selbst genau einmal.
+    //
+    // updatingSelections bleibt trotzdem noetig: waehrend der Schleife loest jedes
+    // setChecked(false) das toggled()-Signal weiter unten aus, das sonst den
+    // Sammelpuffer (selectionDebounceTimer) fuer jeden einzelnen Button neu starten wuerde.
     updatingSelections = true;
 
     for (CategoryBlock &block : categoryBlocks) {
@@ -210,9 +252,12 @@ void SidebarMenu::setAvailableSubcategories(const QString &category, const QStri
     }
 
     updatingSelections = false;
-    selectionDebounceTimer->stop();   // ein noch laufender Sammelpuffer von vorherigen Klicks ist jetzt ueberholt
-    qDebug() << "[Sidebar] activeSelectionsChanged (setAvailableSubcategories, einmalig):" << activeSelections;
-    emit activeSelectionsChanged(activeSelections);
+    selectionDebounceTimer->stop();   // ein noch laufender Sammelpuffer waere jetzt ohnehin ueberholt
+}
+
+QVector<QPair<QString, QString>> SidebarMenu::activeSelectionList() const
+{
+    return activeSelections;
 }
 
 int SidebarMenu::barWidth() const

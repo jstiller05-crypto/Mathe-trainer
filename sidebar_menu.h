@@ -21,6 +21,7 @@ public:
     int barWidth() const;
     void setBarWidth(int width);
     void setAvailableSubcategories(const QString &category, const QStringList &availableSubcategories);
+    QVector<QPair<QString, QString>> activeSelectionList() const;
 
 signals:
     void settingsClicked();
@@ -46,6 +47,7 @@ private:
     QTimer *selectionDebounceTimer;   // sammelt mehrere schnelle Klicks zu EINER Neugenerierung
     bool updatingSelections = false;   // true waehrend setAvailableSubcategories() laeuft - unterdrueckt Zwischen-Signale
     QVBoxLayout *layout;
+    QVBoxLayout *categoryLayout;   // Layout INNERHALB der Scroll-Flaeche, nur die Kategorie-Buttons
     QPushButton *settingsButton;
     QVector<CategoryBlock> categoryBlocks;
     QVector<QPair<QString, QString>> activeSelections;

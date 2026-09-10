@@ -1,15 +1,29 @@
 #include "percent_mult_div_generator.h"
 #include <cstdlib>
 #include <QDebug>
+#include <QVector>
 
 static int maxFactorForLevel(DifficultyLevel level)
 {
     return 9 + level / 2;
 }
 
+// Kopfrechnen-Obergrenze fuer Multiplikations-Faktoren: bewusst FEST (nicht level-abhaengig),
+// damit "Kopfrechnen" auch bei hohen Klassenstufen einstellige bis niedrige zweistellige
+// Faktoren bleibt. Vorher nutzte generateMultiplicationTask() im mentalMath-Fall
+// maxFactorForLevel(level), das bis auf 44 (Level 71/Kl.10) waechst - Ergebnis waren
+// Aufgaben wie "38 × 41 =" als angebliche Kopfrechenaufgabe (siehe generator-bench:
+// Ø 514,55 / Max 1806 bei Kl.10). generateMultiplicationFragment() hatte diesen Deckel
+// (10) schon immer - jetzt teilen sich beide Funktionen denselben Wert statt inkonsistent
+// zu sein.
+static int mentalMathMultiplicationMaxFactor()
+{
+    return 10;
+}
+
 Task generateMultiplicationTask(DifficultyLevel level, bool mentalMath)
 {
-    int maxFactor = mentalMath ? maxFactorForLevel(level) : maxFactorForLevel(level) * 3;
+    int maxFactor = mentalMath ? mentalMathMultiplicationMaxFactor() : maxFactorForLevel(level) * 3;
     int a = rand() % maxFactor + 1;
     int b = rand() % maxFactor + 1;
 
@@ -26,20 +40,21 @@ Task generateMultiplicationTask(DifficultyLevel level, bool mentalMath)
     task.writtenCalculation.freeformAnswer = false;   // Produkt zweier positiver Zahlen ist immer eine positive Ganzzahl
     task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;
 
-    qDebug() << "[Multiplication] mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Multiplication] mentalMath:" << mentalMath << "| maxFactor:" << maxFactor << "|" << task.promptText;
     return task;
 }
 
 TaskFragment generateMultiplicationFragment(DifficultyLevel level, bool mentalMath)
 {
     Q_UNUSED(level);
-    int maxFactor = mentalMath ? 10 : 25;
+    int maxFactor = mentalMath ? mentalMathMultiplicationMaxFactor() : 25;
     int a = rand() % maxFactor + 1;
     int b = rand() % maxFactor + 1;
 
     TaskFragment fragment;
     fragment.value = a * b;
     fragment.display = QString("%1 × %2").arg(a).arg(b);
+    fragment.precedence = Precedence::Point;   // aeusserster Operator ist ×
     return fragment;
 }
 
@@ -78,19 +93,28 @@ TaskFragment generateDivisionFragment(DifficultyLevel level, bool mentalMath)
     TaskFragment fragment;
     fragment.value = quotient;
     fragment.display = QString("%1 ÷ %2").arg(dividend).arg(divisor);
+    fragment.precedence = Precedence::Point;   // aeusserster Operator ist ÷
     return fragment;
 }
 
 Task generatePercentTask(DifficultyLevel level, bool mentalMath)
 {
-    Q_UNUSED(level);
-
     int percent;
     int base;
     if (mentalMath) {
-        int percentSteps[] = {5, 10, 20, 25, 50, 75};
-        percent = percentSteps[rand() % 6];
-        base = (rand() % 20 + 1) * 10;
+        // Kopfrechnen-Prozentsaetze werden mit steigendem Level "unrunder" - so bekommt ein
+        // Zehntklaessler nicht mehr exakt dieselben Aufgaben wie ein Drittklaessler (siehe
+        // generator-bench: vorher war die Duplikate-Rate bei Kl.3 UND Kl.10 identisch 82%,
+        // weil level hier komplett ignoriert wurde).
+        QVector<int> percentSteps = { 5, 10, 20, 25, 50, 75 };
+        if (level >= 31) percentSteps += QVector<int>{ 15, 30, 40, 60, 80, 90 };   // ab Kl.6
+        if (level >= 51) percentSteps += QVector<int>{ 12, 35, 45, 65, 85 };       // ab Kl.8
+        percent = percentSteps[rand() % percentSteps.size()];
+
+        // Grundwert waechst mit dem Level (bleibt durch den festen Faktor 10 weiterhin
+        // eine "runde" Zahl fuers Kopfrechnen), analog zu maxFactorForLevel() oben.
+        int maxBaseSteps = 20 + level / 2;
+        base = (rand() % maxBaseSteps + 1) * 10;
     } else {
         percent = rand() % 99 + 1;
         base = rand() % 990 + 10;
@@ -111,6 +135,7 @@ Task generatePercentTask(DifficultyLevel level, bool mentalMath)
     task.writtenCalculation.freeformAnswer = answerStr.contains('.');   // z.B. 5% von 47 = 2.35
     task.writtenCalculation.mode = WrittenCalculation::DisplayMode::SingleLine;
 
-    qDebug() << "[Percent] mentalMath:" << mentalMath << "|" << task.promptText;
+    qDebug() << "[Percent] mentalMath:" << mentalMath << "| level:" << level << "| moeglicheProzentsaetze:"
+              << (mentalMath ? "level-abhaengig" : "1-99") << "|" << task.promptText;
     return task;
 }

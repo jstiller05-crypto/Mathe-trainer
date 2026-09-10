@@ -11,6 +11,4 @@ TaskFragment generateAdditionFragment(DifficultyLevel level, bool mentalMath);
 Task generateSubtractionTask(DifficultyLevel level, bool mentalMath);
 TaskFragment generateSubtractionFragment(DifficultyLevel level, bool mentalMath);
 
-TaskFragment combineFragments(const TaskFragment &a, const TaskFragment &b, bool mentalMath);
-
 #endif

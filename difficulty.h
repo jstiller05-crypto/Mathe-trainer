@@ -24,4 +24,16 @@ enum class TaskMode {
     Hard          // "Schwere Aufgabe": laengere Ketten (mehr verkettete Operatoren), mehr Zeit zum Loesen
 };
 
+// Klassenstufe (3-10) -> Level-Skala. An dieser einen Stelle definiert, damit sowohl
+// MainWindow (Settings-Seite) als auch der Generator-Pruefstand (generator-bench)
+// dieselbe Umrechnung nutzen, statt sie zweimal zu pflegen. "inline" ist hier noetig,
+// weil diese Definition (nicht nur eine Deklaration) in mehreren .cpp-Dateien ueber
+// dieses Header landen kann - ohne "inline" wuerde der Linker das als mehrfach
+// definiertes Symbol ablehnen. "constexpr" zusaetzlich, damit z.B.
+// RectangleCriteria::MinLevel = classToLevel(4) als Konstante zur COMPILEZEIT
+// berechnet werden kann (wie RootPowerLogCriteria::PowerMinLevel es mit einer
+// nackten Zahl tut) - der Funktionskoerper ist simpel genug (eine Rechnung, kein
+// Zustand), um das ohne weiteres zu erlauben.
+inline constexpr DifficultyLevel classToLevel(int schoolClass) { return (schoolClass - 3) * 10 + 1; }
+
 #endif

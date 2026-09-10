@@ -4,6 +4,6 @@
 #include "task.h"
 #include "difficulty.h"
 
-Task generateUnitsTask(DifficultyLevel level);
+Task generateUnitsTask(DifficultyLevel level, bool mentalMath);
 
 #endif

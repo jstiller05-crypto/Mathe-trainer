@@ -1,11 +1,11 @@
 #include "mainwindow.h"
 #include "arithmetic_unit.h"
+#include "number_format.h"
 #include <QGuiApplication>
 #include <QStyleHints>
 #include <QDebug>
 #include <QTimer>
 #include <QResizeEvent>
-#include <QLocale>
 #include <QColor>
 
 MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
@@ -28,25 +28,24 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     // weiss (und damit praktisch unsichtbar) zeichnet.
     QString textColor = isDarkMode ? "#FFFFFF" : "#1E1E1E";
 
+    // taskLabel/feedbackLabel/answerEdit gibt es seit dem Wegfall der einzeiligen
+    // Label-Darstellung nicht mehr (siehe task_view.h) - die zugehoerigen Regeln sind
+    // raus. textColor (fuer diese Regeln frueher noetig) wird nur noch direkt in C++
+    // gebraucht (siehe setInkColor() unten), nicht mehr im Stylesheet selbst - die
+    // Platzhalter sind deshalb wieder LUECKENLOS durchnummeriert (%1..%4). Qt's
+    // arg()-Kette fuellt bei jedem Aufruf immer die kleinste noch vorhandene Nummer -
+    // eine Luecke (z.B. fehlendes %2 bei weiterhin %1,%3,%4,%5) wuerde sonst die
+    // nachfolgenden Werte leise auf die falschen Platzhalter verschieben.
     QString styleSheet = QString(R"(
         QMainWindow { background-color: %1; }
-        QLabel#taskLabel { font-size: 32pt; font-weight: 600; color: %2; font-family: "%5"; }
-        QLabel#feedbackLabel { font-size: 13pt; color: %2; min-height: 20px; }
-        QLineEdit#answerEdit {
-            font-size: 18pt; padding: 10px 16px; border: 2px solid %3;
-            border-radius: 8px; background-color: %1; color: %2;
-            min-width: 160px; max-width: 220px; font-family: "%5";
-        }
-        QLineEdit#answerEdit:focus { border: 2px solid %4; }
-        QLineEdit#writtenAnswerDigit { font-family: "%5"; }
-        QPushButton#checkButton { background-color: %3; border-radius: 8px; font-size: 16pt; padding: 6px; }
-        QPushButton { background-color: %3; border-radius: 6px; padding: 8px 16px; color: white; border: none; }
-        QPushButton:hover { background-color: %4; }
+        QLineEdit#writtenAnswerDigit { font-family: "%4"; }
+        QPushButton#checkButton { background-color: %2; border-radius: 8px; font-size: 16pt; padding: 6px; }
+        QPushButton { background-color: %2; border-radius: 6px; padding: 8px 16px; color: white; border: none; }
+        QPushButton:hover { background-color: %3; }
     )").arg(isDarkMode ? "#1E1E1E" : "#FAFAFA")
-                             .arg(textColor)
                              .arg(accentColor)
                              .arg("#4A7BDB")
-                             .arg(numberFontFamily);   // NEU - %5
+                             .arg(numberFontFamily);
 
     setStyleSheet(styleSheet);
 
@@ -101,7 +100,11 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         symbolMenu->raise();
         int level = classToLevel(schoolClass);
         controller.setDifficultyLevel(level);
+        // setAvailableSubcategories() emittiert absichtlich nichts mehr (Punkt 1) -
+        // die evtl. veraenderte Auswahl (manche Unterkategorien koennten bei diesem
+        // Level wegfallen) wird hier explizit abgeholt, damit GENAU EINMAL generiert wird.
         sidebar->setAvailableSubcategories("Arithmetik", arithmeticAvailableSubcategories(level));
+        controller.setActiveSelections(sidebar->activeSelectionList());
         controller.startNewTask();
         showNewTask();
     });
@@ -114,7 +117,11 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         sidebar->raise();
         symbolMenu->raise();
 
-        if (!enabled) { showNewTask(); return; }
+        if (!enabled) {
+            showNewTask();
+            taskView->setInputEnabled(true);
+            return;
+        }
 
         // 9 unterschiedliche Aufgaben aus den aktuell aktiven Kategorien/dem aktuellen
         // Modus - jede einzeln ueber startNewTask() erzeugt, damit die gleiche Vielfalt
@@ -125,6 +132,12 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
             sheet.append(controller.getCurrentTask());
         }
         taskView->showWorksheet(sheet);
+
+        // Aufgabenblatt zeigt 9 statische Aufgaben zum handschriftlichen Ausfuellen -
+        // ohne diese Zeile wuerden Check/Weiter weiterhin die zuletzt (unsichtbar)
+        // erzeugte Einzelaufgabe aus der obigen Schleife pruefen bzw. ueberspringen.
+        taskView->setInputEnabled(false);
+        taskView->setContinueButtonVisible(false);
     });
 
     connect(taskView, &TaskView::answerSubmitted, this, &MainWindow::onAnswerSubmitted);
@@ -136,29 +149,15 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     showNewTask();
 }
 
-int MainWindow::classToLevel(int schoolClass) const
-{
-    return (schoolClass - 3) * 10 + 1;
-}
-
 // Formatiert die erwartete(n) Loesung(en) einer Aufgabe fuer die "Falsch - richtig
-// waere ..."-Rueckmeldung. QLocale::system() sorgt fuer ein Komma statt Punkt (auf
-// einem deutschen System) - toString(double, 'f', 2) liefert dafuer aber IMMER genau
-// 2 Nachkommastellen (z.B. "42,00"), die fuer eine ganze Zahl ueberfluessigen Nullen
-// (und ein dann ueberfluessiges Komma) werden deshalb danach manuell abgeschnitten.
+// waere ..."-Rueckmeldung - die eigentliche Rundungs-/Komma-Logik steckt jetzt in
+// formatGermanDecimal() (number_format.h), damit sie nicht doppelt gehalten wird
+// (dieselbe Logik braucht z.B. auch der Dezimalzahlen-Generator fuer den Aufgabentext).
 QString MainWindow::formatSolution(const Task &task) const
 {
-    QLocale locale = QLocale::system();
-    QString decimalPoint = locale.decimalPoint();
-
     QStringList values;
     for (const AnswerSlot &slot : task.answers) {
-        QString formatted = locale.toString(slot.expectedValue, 'f', 2);
-        if (formatted.contains(decimalPoint)) {
-            while (formatted.endsWith('0')) formatted.chop(1);
-            if (formatted.endsWith(decimalPoint)) formatted.chop(1);
-        }
-        values.append(formatted);
+        values.append(formatGermanDecimal(slot.expectedValue));
     }
     return values.join(", ");
 }
