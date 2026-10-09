@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "arithmetic_unit.h"
+#include "geometry_unit.h"
 #include "number_format.h"
 #include <QGuiApplication>
 #include <QStyleHints>
@@ -65,6 +66,10 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
     sidebar->resize(sidebar->width(), stack->height());
     sidebar->raise();
     sidebar->setAvailableSubcategories("Arithmetik", arithmeticAvailableSubcategories(Preset::Beginner));
+    // Analog zu Arithmetik - ohne diesen Aufruf wuesste ein eingeschalteter "Rechteck"-
+    // Button nie, ob er beim aktuellen Level ueberhaupt verfuegbar ist (siehe
+    // RectangleCriteria::MinLevel in rectangle_generator.h).
+    sidebar->setAvailableSubcategories("Geometrie", geometryAvailableSubcategories(Preset::Beginner));
 
     symbolMenu = new SymbolMenu(stack);
     symbolMenu->repositionAt(stack->width(), stack->height());
@@ -104,6 +109,7 @@ MainWindow::MainWindow(const QString &numberFontFamily, QWidget *parent)
         // die evtl. veraenderte Auswahl (manche Unterkategorien koennten bei diesem
         // Level wegfallen) wird hier explizit abgeholt, damit GENAU EINMAL generiert wird.
         sidebar->setAvailableSubcategories("Arithmetik", arithmeticAvailableSubcategories(level));
+        sidebar->setAvailableSubcategories("Geometrie", geometryAvailableSubcategories(level));
         controller.setActiveSelections(sidebar->activeSelectionList());
         controller.startNewTask();
         showNewTask();

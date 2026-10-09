@@ -8,9 +8,10 @@
 #include "divisibility_generator.h"
 #include "decimal_generator.h"
 #include "fragment_algebra.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <cmath>
 #include <algorithm>
+#include <optional>
 #include <QDebug>
 
 static TaskFragment fragmentForSubcategory(const QString &subcategory, DifficultyLevel level, bool smallNumbers)
@@ -66,7 +67,7 @@ static int pickChainLength(bool preferShortChains, int activeFragmentCapableCoun
     int maxPossible = std::min(activeFragmentCapableCount, preferShortChains ? 3 : 4);
     if (maxPossible <= 1) return 1;
 
-    int roll = rand() % 100;
+    int roll = randomInt(0, 99);
 
     if (preferShortChains) {
         if (roll < 70) return 1;
@@ -86,14 +87,16 @@ static int pickChainLength(bool preferShortChains, int activeFragmentCapableCoun
 // auf ein gleich stark bindendes RECHTES Fragment, wird automatisch geklammert.
 static QString pickOperatorForLevel(DifficultyLevel level)
 {
-    int roll = rand() % 100;
+    int roll = randomInt(0, 99);
 
-    if (level < 21) {
+    // F16: Kl.5/Kl.7 statt der frueheren nackten Zahlen 21/41 - folgen jetzt automatisch
+    // der zentralen classToLevel()-Umrechnung (difficulty.h).
+    if (level < classToLevel(5)) {
         // + 45%, - 45%, × 10%, ÷ 0%
         if (roll < 45) return "+";
         if (roll < 90) return "-";
         return "×";
-    } else if (level < 41) {
+    } else if (level < classToLevel(7)) {
         // + 30%, - 30%, × 25%, ÷ 15%
         if (roll < 30) return "+";
         if (roll < 60) return "-";
@@ -128,7 +131,7 @@ static TaskFragment combineFragments(const TaskFragment &a, const TaskFragment &
     // immer als LINKER Operand (chain = combineFragments(chain, next)). Ohne Tausch
     // koennten Klammern dadurch strukturell nur links entstehen - Faelle wie
     // "12 - (3 + 2)" oder "20 ÷ (2 × 5)" (Klammer RECHTS) waeren sonst unerreichbar.
-    bool swapSides = (rand() % 2 == 0);
+    bool swapSides = randomChance(50);
     const TaskFragment &left = swapSides ? b : a;
     const TaskFragment &right = swapSides ? a : b;
 
@@ -186,17 +189,17 @@ static Task generateArithmeticTaskOnce(DifficultyLevel level, const QStringList 
     qDebug() << "[ArithmeticUnit] Kettenlaenge gewaehlt:" << chainLength;
 
     if (chainLength <= 1) {
-        QString chosen = subcategories[rand() % subcategories.size()];
+        QString chosen = subcategories[randomInt(0, subcategories.size() - 1)];
         qDebug() << "[ArithmeticUnit] Keine Verschmelzung, gewaehlt:" << chosen;
         return standaloneForSubcategory(chosen, level, smallNumbers);
     }
 
-    QString firstSub = fragmentCapable[rand() % fragmentCapable.size()];
+    QString firstSub = fragmentCapable[randomInt(0, fragmentCapable.size() - 1)];
     TaskFragment chain = fragmentForSubcategory(firstSub, level, smallNumbers);
     qDebug() << "[ArithmeticUnit] Kette gestartet mit" << firstSub << ":" << chain.display << "=" << chain.value;
 
     for (int i = 1; i < chainLength; ++i) {
-        QString nextSub = fragmentCapable[rand() % fragmentCapable.size()];
+        QString nextSub = fragmentCapable[randomInt(0, fragmentCapable.size() - 1)];
         TaskFragment nextFragment = fragmentForSubcategory(nextSub, level, smallNumbers);
         chain = combineFragments(chain, nextFragment, level, smallNumbers);
         qDebug() << "[ArithmeticUnit] Glied" << (i + 1) << "(" << nextSub << "):" << chain.display << "=" << chain.value;
@@ -221,11 +224,6 @@ static Task generateArithmeticTaskOnce(DifficultyLevel level, const QStringList 
     return task;
 }
 
-// Gleiche Schwelle wie negativeResultsAllowed() in addition_subtraction_generator.cpp
-// (dort nicht exportiert) - als benannte Konstante statt einer nackten 31, damit der
-// Zusammenhang beim Lesen sofort klar ist.
-static constexpr DifficultyLevel kNegativeResultsMinLevel = 31;
-
 // Grobe Obergrenze fuer den BETRAG des Ergebnisses, unabhaengig davon, wie grosszuegig
 // die einzelnen Generatoren ihre eigenen Zahlenraeume waehlen - waechst mit dem Level.
 static double resultMagnitudeCeilingForLevel(DifficultyLevel level)
@@ -242,19 +240,30 @@ static constexpr int kMaxExpressionAndAnswerLength = 44;
 // die Unit vorsieht - wichtig geworden, seit Terme (Klammern & Terme) mehrere
 // Operatoren und damit staerker schwankende Ergebnisse liefern koennen. static/intern,
 // da nur generateArithmeticTask() (s.u.) sie braucht.
-static bool isPlausible(const Task &task, DifficultyLevel level, TaskMode mode)
+//
+// F27: liefert bei Unplausibilitaet jetzt den GRUND als Text statt nur false - vorher
+// war das nur per qDebug() in der Konsole sichtbar, generator-bench (benchmark_main.cpp)
+// kann das Ergebnis jetzt zusaetzlich einsammeln und auswerten (Spalte "Abgelehnt%").
+// std::optional<QString> statt eines bool-Ausgabeparameters: "kein Grund" (die Aufgabe
+// IST plausibel) ist dadurch ein eigener, eindeutiger Zustand (std::nullopt) statt sich
+// mit einem leeren String zu ueberschneiden, der ja theoretisch auch "ein Grund, der
+// zufaellig leer ist" bedeuten koennte.
+static std::optional<QString> findImplausibilityReason(const Task &task, DifficultyLevel level, TaskMode mode)
 {
-    if (task.answers.isEmpty()) return false;
+    if (task.answers.isEmpty()) return QString("keine Antwort vorhanden");
     double value = task.answers.first().expectedValue;
 
-    if (value < 0 && level < kNegativeResultsMinLevel) {
-        qDebug() << "[ArithmeticUnit] Unplausibel: negatives Ergebnis" << value << "unter Level" << kNegativeResultsMinLevel;
-        return false;
+    // F16: NegativeNumberCriteria::MinLevel (negative_number_generator.h) statt einer
+    // eigenen kNegativeResultsMinLevel-Kopie - "ab hier sind negative Ergebnisse erlaubt"
+    // hat jetzt nur noch EINE Quelle, die auch negativeResultsAllowed() in
+    // addition_subtraction_generator.cpp nutzt.
+    if (value < 0 && level < NegativeNumberCriteria::MinLevel) {
+        return QString("negatives Ergebnis %1 unter Level %2 (erlaubt ab %3)")
+            .arg(value).arg(level).arg(NegativeNumberCriteria::MinLevel);
     }
 
     if (std::abs(value) > resultMagnitudeCeilingForLevel(level)) {
-        qDebug() << "[ArithmeticUnit] Unplausibel: Ergebnis" << value << "ueber der Obergrenze fuer Level" << level;
-        return false;
+        return QString("Ergebnis %1 ueber der Obergrenze fuer Level %2").arg(value).arg(level);
     }
 
     // Kleine Toleranz statt exaktem Vergleich - wie schon in checkAnswers()
@@ -265,20 +274,19 @@ static bool isPlausible(const Task &task, DifficultyLevel level, TaskMode mode)
     // trotzdem (mit Warnung) durchkommt.
     bool inherentlyNonInteger = (task.ruleName == "Decimal");
     if (mode == TaskMode::MentalMath && !inherentlyNonInteger && std::abs(value - std::round(value)) > 0.001) {
-        qDebug() << "[ArithmeticUnit] Unplausibel: Kopfrechnen-Ergebnis" << value << "ist keine Ganzzahl";
-        return false;
+        return QString("Kopfrechnen-Ergebnis %1 ist keine Ganzzahl").arg(value);
     }
 
     int totalLength = task.writtenCalculation.expression.length() + task.writtenCalculation.answerDigitCount;
     if (totalLength > kMaxExpressionAndAnswerLength) {
-        qDebug() << "[ArithmeticUnit] Unplausibel: Aufgabe zu lang fuers Raster (" << totalLength << "Zeichen):" << task.promptText;
-        return false;
+        return QString("Aufgabe zu lang fuers Raster (%1 Zeichen): %2").arg(totalLength).arg(task.promptText);
     }
 
-    return true;
+    return std::nullopt;   // alles i.O. - kein Grund zur Ablehnung
 }
 
-Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, TaskMode mode)
+Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubcategories, TaskMode mode,
+                             ArithmeticGenerationInfo *info)
 {
     // Erzeugen, pruefen, bei Fehlschlag neu wuerfeln - MAXIMAL 20 Versuche. Ohne
     // Obergrenze waere eine Endlosschleife moeglich, sobald eine Level-Regel
@@ -291,14 +299,24 @@ Task generateArithmeticTask(DifficultyLevel level, const QStringList &activeSubc
     for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
         task = generateArithmeticTaskOnce(level, activeSubcategories, mode);
 
-        if (isPlausible(task, level, mode)) {
+        // info ist ein Zeiger MIT nullptr als Default (siehe arithmetic_unit.h) - "if
+        // (info)" prueft, ob ueberhaupt ein Aufrufer (aktuell nur generator-bench)
+        // Interesse an den Diagnose-Daten hat, bevor hineingeschrieben wird. Ohne diese
+        // Pruefung waere "info->attempts = ..." bei einem nullptr ein Absturz
+        // (Nullzeiger-Dereferenzierung).
+        if (info) info->attempts = attempt;
+
+        std::optional<QString> issue = findImplausibilityReason(task, level, mode);
+        if (!issue) {
             return task;
         }
 
-        qDebug() << "[ArithmeticUnit] Versuch" << attempt << "von" << maxAttempts << "unplausibel - neu wuerfeln.";
+        qDebug() << "[ArithmeticUnit] Versuch" << attempt << "von" << maxAttempts << "unplausibel:" << *issue << "- neu wuerfeln.";
+        if (info) info->rejectReasons.append(*issue);
     }
 
     qWarning() << "[ArithmeticUnit] Keine plausible Aufgabe nach" << maxAttempts << "Versuchen - nehme die letzte:" << task.promptText;
+    if (info) info->fallbackUsed = true;
     return task;
 }
 

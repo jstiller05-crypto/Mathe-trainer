@@ -2,6 +2,7 @@
 #include "arithmetic_unit.h"
 #include "divisibility_generator.h"
 #include "geometry_unit.h"
+#include "number_format.h"
 #include <QApplication>
 #include <QFontDatabase>
 #include <QStyleHints>
@@ -9,8 +10,6 @@
 #include <QIcon>
 #include <QFont>
 #include <QDebug>
-#include <cstdlib>
-#include <ctime>
 
 // Eigene Hilfsfunktion: laedt eine Schriftart, gibt den Familiennamen zurueck
 // (oder einen Ersatzwert, falls es fehlschlaegt) - faengt Fehler ab statt abzustuerzen.
@@ -47,12 +46,11 @@ bool loadAppIcon(QApplication &app, MainWindow &window, const QString &path)
 
 int main(int argc, char *argv[])
 {
-    // Ohne srand() startet rand() (genutzt in allen Generatoren) bei jedem Programmstart
-    // mit demselben Standard-Seed (1) - die App wuerde also bei jedem Start exakt dieselbe
-    // Aufgabenfolge zeigen. Einmaliges Seeden mit der aktuellen Uhrzeit reicht hier aus.
-    // (Die sauberere Umstellung auf QRandomGenerator in allen Generatoren ist ein
-    // separater, spaeterer Schritt - hier bewusst NICHT mit erledigt.)
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    // F17/F23: kein std::srand() mehr noetig - alle Generatoren nutzen jetzt randomInt()/
+    // randomUnitInterval()/randomChance() aus random_utils.h, deren interner
+    // QRandomGenerator sich selbst ueber QRandomGenerator::securelySeeded() initialisiert
+    // (siehe random_utils.cpp). Jeder App-Start bekommt dadurch automatisch eine andere
+    // Aufgabenfolge, ohne dass main.cpp sich selbst um einen Startwert kuemmern muss.
 
     // QT_NO_DEBUG ist im Release-Build definiert (CMake setzt das automatisch je
     // nach Build-Typ) - der Selbsttest laeuft deshalb nur im Debug-Build, kostet im
@@ -61,6 +59,7 @@ int main(int argc, char *argv[])
     runCombineSelfTest();
     runDivisibilitySelfTest();
     runGeometrySelfTest();
+    runNumberFormatSelfTest();
 #endif
 
     QApplication app(argc, argv);
@@ -78,5 +77,6 @@ int main(int argc, char *argv[])
     loadAppIcon(app, window, ":/resources/icons/app.ico");
 
     window.show();
+
     return QApplication::exec();
 }

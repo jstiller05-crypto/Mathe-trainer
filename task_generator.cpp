@@ -13,11 +13,9 @@ Task generateTask(DifficultyLevel level, const QVector<QPair<QString, QString>> 
         if (selection.first == "Geometrie") geometrySubs.append(selection.second);
     }
 
-    // "Geometrie" hat noch keine Sidebar-UI-Anbindung (siehe Aufgabenbeschreibung) -
-    // activeSelections kann also aktuell in der laufenden App nie einen Geometrie-
-    // Eintrag enthalten. Trotzdem schon hier verdrahtet, damit generateGeometryTask()
-    // ueber diesen normalen Weg erreichbar ist, sobald die Sidebar-Integration kommt -
-    // fuer diesen Schritt wird es stattdessen testweise direkt aufgerufen (siehe main.cpp).
+    // "Geometrie" ist jetzt genau wie "Arithmetik" ueber die Sidebar erreichbar (siehe
+    // sidebar_menu.cpp: buildCategoryTree()) - diese Weiche war schon VOR der Sidebar-
+    // Anbindung fertig verdrahtet und greift jetzt im normalen Betrieb.
     if (!geometrySubs.isEmpty()) {
         qDebug() << "[TaskGenerator] Geometrie-Unterkategorien aus Auswahl:" << geometrySubs;
         return generateGeometryTask(level, geometrySubs, mode);

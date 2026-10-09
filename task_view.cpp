@@ -65,12 +65,25 @@ void TaskView::insertSymbolAtFocus(const QString &symbol)
 void TaskView::showTask(const Task &task)
 {
     writtenGrid->setVisible(true);
-    writtenGrid->showCalculation(task.writtenCalculation);
+
+    // Geometrie-Aufgaben (siehe task.h: Task::geometryModel) bekommen ihre eigene
+    // Darstellung ueber WrittenGridWidget::showModel() statt der Rechen-Kaestchen -
+    // die Weiche liegt bewusst hier (statt z.B. in SessionController), weil es reine
+    // Anzeige-Logik ist und TaskView schon jetzt die einzige Stelle ist, die
+    // writtenGrid kennt.
+    if (task.geometryModel) {
+        writtenGrid->showModel(*task.geometryModel);
+    } else {
+        writtenGrid->showCalculation(task.writtenCalculation);
+    }
 }
 
 QVector<QString> TaskView::currentAnswerTexts() const
 {
-    return { writtenGrid->currentAnswerText() };
+    // Direkt durchgereicht statt auf einen Einzelwert reduziert - WrittenGridWidget
+    // liefert je nach Modus entweder einen 1-elementigen Vektor (Rechen-Modus) oder
+    // mehrere unabhaengige Antworten (Geometrie-Modus, siehe dortiger Kommentar).
+    return writtenGrid->currentAnswerTexts();
 }
 
 void TaskView::showWorksheet(const QVector<Task> &tasks)
@@ -81,7 +94,7 @@ void TaskView::showWorksheet(const QVector<Task> &tasks)
 
 void TaskView::showAnswerColors(const QVector<bool> &correctness)
 {
-    writtenGrid->showAnswerColor(!correctness.isEmpty() && correctness.first());
+    writtenGrid->showAnswerColors(correctness);
 }
 
 void TaskView::resizeEvent(QResizeEvent *event)

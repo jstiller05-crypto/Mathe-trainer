@@ -8,10 +8,12 @@
 // Kriterien fuer diesen Generator - lokal hier dokumentiert (wie bei
 // root_power_log_generator.h), statt zentral verstreut.
 namespace TermCriteria {
-inline constexpr DifficultyLevel MixedOperatorsMinLevel = 21;  // Kl.5 - Terme mit gemischten Ebenen (Punkt+Strich) ueberhaupt erst ab hier
-inline constexpr DifficultyLevel ParenthesesMinLevel    = 21;  // Kl.5 - Unterkategorie "Klammern & Terme" wird ab hier in der Sidebar freigeschaltet
-inline constexpr DifficultyLevel DivisionMinLevel       = 21;  // Kl.5 - ÷ als Punkt-Operator im Term erlaubt
-inline constexpr DifficultyLevel NestedMinLevel         = 51;  // Kl.8 - Terme mit geschachtelter Klammer, z.B. "3 × (4 + 2) − 7"
+// F16: classToLevel(n) statt nackter Zahlen - folgen jetzt automatisch der zentralen
+// Klasse->Level-Umrechnung (difficulty.h).
+inline constexpr DifficultyLevel MixedOperatorsMinLevel = classToLevel(5);  // Kl.5 - Terme mit gemischten Ebenen (Punkt+Strich) ueberhaupt erst ab hier
+inline constexpr DifficultyLevel ParenthesesMinLevel    = classToLevel(5);  // Kl.5 - Unterkategorie "Klammern & Terme" wird ab hier in der Sidebar freigeschaltet
+inline constexpr DifficultyLevel DivisionMinLevel       = classToLevel(5);  // Kl.5 - ÷ als Punkt-Operator im Term erlaubt
+inline constexpr DifficultyLevel NestedMinLevel         = classToLevel(8);  // Kl.8 - Terme mit geschachtelter Klammer, z.B. "3 × (4 + 2) − 7"
 }
 
 // Eigenstaendige Speiche: erzeugt ihre Operanden selbst, keine Abhaengigkeit zu

@@ -1,6 +1,6 @@
 #include "negative_number_generator.h"
 #include "fragment_algebra.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <QDebug>
 
 // Eigene, bewusst einfache Umrechnung (wie jeder Generator).
@@ -46,29 +46,29 @@ static Task buildTaskFromResult(const TaskFragment &result, bool mentalMath)
 Task generateNegativeNumberTask(DifficultyLevel level, bool mentalMath)
 {
     int maxOperand = maxOperandForLevel(level, mentalMath);
-    int form = rand() % 4;
+    int form = randomInt(0, 3);
 
     TaskFragment result;
 
     switch (form) {
     case 0: {
         // Addition, mindestens ein Operand negativ: "(-3) + 5 ="
-        int a = -(rand() % maxOperand + 1);
-        int b = rand() % maxOperand + 1;
+        int a = -randomInt(1, maxOperand);
+        int b = randomInt(1, maxOperand);
         result = combineWithOperator(makeNumberFragment(a), makeNumberFragment(b), "+");
         break;
     }
     case 1: {
         // Subtraktion, negativer zweiter Operand - die Minus-Minus-Falle: "4 - (-7) ="
-        int a = rand() % maxOperand + 1;
-        int b = -(rand() % maxOperand + 1);
+        int a = randomInt(1, maxOperand);
+        int b = -randomInt(1, maxOperand);
         result = combineWithOperator(makeNumberFragment(a), makeNumberFragment(b), "-");
         break;
     }
     case 2: {
         // Multiplikation, beide Operanden negativ -> positives Ergebnis: "(-2) × (-6) ="
-        int a = -(rand() % maxOperand + 1);
-        int b = -(rand() % maxOperand + 1);
+        int a = -randomInt(1, maxOperand);
+        int b = -randomInt(1, maxOperand);
         result = combineWithOperator(makeNumberFragment(a), makeNumberFragment(b), "×");
         break;
     }
@@ -76,8 +76,8 @@ Task generateNegativeNumberTask(DifficultyLevel level, bool mentalMath)
         // Division, geht IMMER glatt auf (wie bei den bestehenden Divisions-
         // Generatoren: Divisor und Quotient zuerst waehlen, der Dividend ergibt sich
         // daraus) - hier zusaetzlich der Dividend negativ: "(-12) ÷ 3 ="
-        int divisor = rand() % maxOperand + 1;
-        int quotient = rand() % maxOperand + 1;
+        int divisor = randomInt(1, maxOperand);
+        int quotient = randomInt(1, maxOperand);
         int dividend = -(divisor * quotient);
         result = combineWithOperator(makeNumberFragment(dividend), makeNumberFragment(divisor), "÷");
         break;
@@ -90,7 +90,7 @@ Task generateNegativeNumberTask(DifficultyLevel level, bool mentalMath)
 TaskFragment generateNegativeNumberFragment(DifficultyLevel level, bool mentalMath)
 {
     int maxOperand = maxOperandForLevel(level, mentalMath);
-    int value = -(rand() % maxOperand + 1);
+    int value = -randomInt(1, maxOperand);
 
     // Anders als makeNumberFragment() oben wird HIER bewusst schon selbst geklammert:
     // dieses Fragment wird als fertiger Baustein exportiert (siehe

@@ -9,6 +9,7 @@
 #include "arithmetic_unit.h"
 #include "divisibility_generator.h"
 #include "number_format.h"
+#include "random_utils.h"
 #include "difficulty.h"
 
 #include <QCoreApplication>
@@ -20,8 +21,6 @@
 #include <QHash>
 #include <QVector>
 #include <QDebug>
-#include <cstdlib>
-#include <ctime>
 #include <cmath>
 #include <algorithm>
 
@@ -44,6 +43,16 @@ struct Stats {
     int chainHeuristicCount = 0;
     qint64 totalExpressionLength = 0;
     QHash<QString, int> promptCounts;   // fuer Duplikat-Erkennung ueber task.promptText
+
+    // F27: vorher massen die Bench-Zahlen nur die Aufgabe, die am ENDE einer
+    // generateArithmeticTask()-Erzeugung zurueckkommt - also NACH dem internen
+    // Plausibilitaets-Filter (maxAttempts-Schleife, siehe arithmetic_unit.cpp). Wie
+    // viele Versuche davor verworfen wurden (z.B. weil ein Generator systematisch zu
+    // grosse Zahlen liefert, siehe F07), war dadurch unsichtbar. Jetzt zusaetzlich
+    // ueber ArithmeticGenerationInfo (arithmetic_unit.h) eingesammelt.
+    qint64 totalAttempts = 0;      // Summe aller Erzeugungsversuche (akzeptierte + verworfene) ueber alle Samples
+    qint64 rejectedAttempts = 0;   // davon verworfen (totalAttempts - count, count = Anzahl Samples)
+    int fallbackCount = 0;         // wie oft der Notausgang (20 Versuche erfolglos) gegriffen hat
 };
 
 static void addSample(Stats &stats, const Task &task)
@@ -109,8 +118,13 @@ static Stats runSubcategory(DifficultyLevel level, const QString &subcategory, T
     QStringList onlyThis = { subcategory };
 
     for (int i = 0; i < samples; ++i) {
-        Task task = generateArithmeticTask(level, onlyThis, mode);
+        ArithmeticGenerationInfo info;
+        Task task = generateArithmeticTask(level, onlyThis, mode, &info);
         addSample(stats, task);
+
+        stats.totalAttempts += info.attempts;
+        stats.rejectedAttempts += info.rejectReasons.size();
+        if (info.fallbackUsed) stats.fallbackCount++;
     }
     return stats;
 }
@@ -122,8 +136,13 @@ static Stats runMixed(DifficultyLevel level, const QStringList &allSubcategories
         // Volle Liste statt einer einzelnen Unterkategorie - hier DARF (und soll)
         // arithmetic_unit.cpp verketten. Zeigt das tatsaechliche Bild, das ein
         // Spieler ohne Sidebar-Einschraenkung zu sehen bekommt.
-        Task task = generateArithmeticTask(level, allSubcategories, mode);
+        ArithmeticGenerationInfo info;
+        Task task = generateArithmeticTask(level, allSubcategories, mode, &info);
         addSample(stats, task);
+
+        stats.totalAttempts += info.attempts;
+        stats.rejectedAttempts += info.rejectReasons.size();
+        if (info.fallbackUsed) stats.fallbackCount++;
     }
     return stats;
 }
@@ -148,6 +167,9 @@ static void printTableHeader(QTextStream &out)
     out.setFieldWidth(12); out << "Verkettet%";
     out.setFieldWidth(12); out << "Duplikate%";
     out.setFieldWidth(10); out << "Ø Laenge";
+    out.setFieldWidth(11); out << "Versuche Ø";
+    out.setFieldWidth(11); out << "Abgelehnt%";
+    out.setFieldWidth(11); out << "Notausgang";
     out.setFieldWidth(0);
     out << Qt::endl;
 }
@@ -162,6 +184,12 @@ static void printTableRow(QTextStream &out, const QString &label, const Stats &s
     double duplicatePercent = stats.count > 0 ? 100.0 * (stats.count - stats.promptCounts.size()) / stats.count : 0.0;
     double avgLength = stats.count > 0 ? static_cast<double>(stats.totalExpressionLength) / stats.count : 0.0;
 
+    // F27: "Versuche Ø" bezieht sich auf stats.count (= Anzahl Samples, jeder Sample
+    // braucht MINDESTENS 1 Versuch), "Abgelehnt%" dagegen auf totalAttempts (= ALLE
+    // Versuche zusammen, akzeptierte + verworfene) - siehe Stats-Kommentar oben.
+    double avgAttempts = stats.count > 0 ? static_cast<double>(stats.totalAttempts) / stats.count : 0.0;
+    double rejectedPercent = stats.totalAttempts > 0 ? 100.0 * stats.rejectedAttempts / stats.totalAttempts : 0.0;
+
     out.setFieldAlignment(QTextStream::AlignLeft);
     out.setFieldWidth(24); out << label;
     out.setFieldAlignment(QTextStream::AlignRight);
@@ -175,6 +203,9 @@ static void printTableRow(QTextStream &out, const QString &label, const Stats &s
     out.setFieldWidth(12); out << QString::number(chainPercent, 'f', 1);
     out.setFieldWidth(12); out << QString::number(duplicatePercent, 'f', 1);
     out.setFieldWidth(10); out << QString::number(avgLength, 'f', 1);
+    out.setFieldWidth(11); out << QString::number(avgAttempts, 'f', 2);
+    out.setFieldWidth(11); out << QString::number(rejectedPercent, 'f', 1);
+    out.setFieldWidth(11); out << stats.fallbackCount;
     out.setFieldWidth(0);
     out << Qt::endl;
 }
@@ -182,7 +213,8 @@ static void printTableRow(QTextStream &out, const QString &label, const Stats &s
 static void writeCsvHeader(QTextStream &out)
 {
     out << "Level;Klasse;Modus;Unterkategorie;Anzahl;Min;Max;Mittelwert;NegProzent;"
-           "DezProzent;KlammerProzent;VerkettetProzent;DuplikateProzent;MittlereLaenge\n";
+           "DezProzent;KlammerProzent;VerkettetProzent;DuplikateProzent;MittlereLaenge;"
+           "VersucheMittel;AbgelehntProzent;Notausgang\n";
 }
 
 // Semikolon als Trennzeichen, Komma als Dezimaltrennzeichen (deutsches Excel-Format) -
@@ -199,6 +231,8 @@ static void writeCsvRow(QTextStream &out, DifficultyLevel level, int schoolClass
     double chainPercent = stats.count > 0 ? 100.0 * stats.chainHeuristicCount / stats.count : 0.0;
     double duplicatePercent = stats.count > 0 ? 100.0 * (stats.count - stats.promptCounts.size()) / stats.count : 0.0;
     double avgLength = stats.count > 0 ? static_cast<double>(stats.totalExpressionLength) / stats.count : 0.0;
+    double avgAttempts = stats.count > 0 ? static_cast<double>(stats.totalAttempts) / stats.count : 0.0;
+    double rejectedPercent = stats.totalAttempts > 0 ? 100.0 * stats.rejectedAttempts / stats.totalAttempts : 0.0;
 
     out << level << ";" << schoolClass << ";" << taskModeLabel(mode) << ";" << label << ";"
         << stats.count << ";"
@@ -210,7 +244,10 @@ static void writeCsvRow(QTextStream &out, DifficultyLevel level, int schoolClass
         << formatGermanDecimal(bracketPercent) << ";"
         << formatGermanDecimal(chainPercent) << ";"
         << formatGermanDecimal(duplicatePercent) << ";"
-        << formatGermanDecimal(avgLength) << "\n";
+        << formatGermanDecimal(avgLength) << ";"
+        << formatGermanDecimal(avgAttempts) << ";"
+        << formatGermanDecimal(rejectedPercent) << ";"
+        << stats.fallbackCount << "\n";
 }
 
 // Eigener Nachrichten-Handler: verwirft ALLE qDebug()-Ausgaben. Die Generatoren
@@ -244,7 +281,7 @@ static void quietDebugMessageHandler(QtMsgType type, const QMessageLogContext &c
 int main(int argc, char *argv[])
 {
     // Muss VOR dem ersten qDebug()/qWarning()-Aufruf installiert sein - deshalb
-    // ganz am Anfang, noch vor srand() und vor QCoreApplication.
+    // ganz am Anfang, noch vor QCoreApplication.
     qInstallMessageHandler(quietDebugMessageHandler);
 
 #ifdef Q_OS_WIN
@@ -255,9 +292,11 @@ int main(int argc, char *argv[])
     SetConsoleCP(CP_UTF8);
 #endif
 
-    // Gleiches Vorgehen wie in main.cpp der App: ohne srand() waere die
-    // Zufallsfolge bei jedem Start identisch.
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    // F17/F23: kein std::srand() mehr noetig, siehe main.cpp - die Generatoren
+    // verwenden jetzt randomInt()/randomChance() (random_utils.h), deren Generator sich
+    // standardmaessig selbst zufaellig seedet. Fuer die Bench kommt gleich noch die
+    // Option --seed dazu (F27), die ueber setRandomSeed() reproduzierbare Laeufe erzwingen
+    // kann (z.B. um einen einzelnen seltenen Fall gezielt nachzustellen).
 
     // Der Pruefstand soll NIE auf einer kaputten combine()/ggT-Implementierung
     // laufen, ohne dass es sofort auffaellt - deshalb dieselben Selbsttests wie in
@@ -265,6 +304,7 @@ int main(int argc, char *argv[])
 #ifndef QT_NO_DEBUG
     runCombineSelfTest();
     runDivisibilitySelfTest();
+    runNumberFormatSelfTest();
 #endif
 
     QCoreApplication app(argc, argv);
@@ -277,12 +317,23 @@ int main(int argc, char *argv[])
 
     QCommandLineOption samplesOption("samples", "Aufgaben pro Level/Modus/Unterkategorie.", "N", "500");
     QCommandLineOption csvOption("csv", "Ergebnisse zusaetzlich als CSV-Datei schreiben.", "pfad");
+    // F27: fester Startwert statt des normalerweise zufaelligen Seeds (random_utils.cpp) -
+    // damit laesst sich ein konkreter Lauf (z.B. einer mit auffaelligen Werten) exakt
+    // wiederholen, um ihn in Ruhe zu untersuchen.
+    QCommandLineOption seedOption("seed", "Fester Zufalls-Startwert fuer reproduzierbare Laeufe.", "N");
     parser.addOption(samplesOption);
     parser.addOption(csvOption);
+    parser.addOption(seedOption);
     parser.process(app);
 
     int samples = parser.value(samplesOption).toInt();
     if (samples <= 0) samples = 500;
+
+    if (parser.isSet(seedOption)) {
+        quint32 seed = parser.value(seedOption).toUInt();
+        setRandomSeed(seed);
+        qWarning() << "Fester Zufalls-Seed aktiv:" << seed << "- Lauf ist reproduzierbar.";
+    }
 
     QTextStream out(stdout);
     out.setEncoding(QStringConverter::Utf8);   // explizit statt Qt's Locale-Ratewerk auf der Konsole

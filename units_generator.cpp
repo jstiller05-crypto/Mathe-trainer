@@ -1,5 +1,5 @@
 #include "units_generator.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <algorithm>
 #include <QVector>
 #include <QDebug>
@@ -52,7 +52,7 @@ Task generateUnitsTask(DifficultyLevel level, bool mentalMath)
         if (level >= conversion.minLevel) available.append(conversion);
     }
 
-    const UnitConversion &chosen = available[rand() % available.size()];
+    const UnitConversion &chosen = available[randomInt(0, available.size() - 1)];
 
     // Wertebereich waechst mit dem Level, im Kopfrechnen-Modus vorsichtiger als im
     // Taschenrechner-/Schwere-Aufgabe-Modus (dort duerfen auch groessere Werte vorkommen,
@@ -60,7 +60,7 @@ Task generateUnitsTask(DifficultyLevel level, bool mentalMath)
     // Kopfrechnen-Deckel bei Addition/Subtraktion, damit es im mentalMath-Fall nicht doch
     // unbegrenzt waechst.
     int maxSteps = mentalMath ? std::min(20 + level / 3, 60) : (20 + level);
-    int value = (rand() % maxSteps + 1) * chosen.valueStep;
+    int value = randomInt(1, maxSteps) * chosen.valueStep;
     double result = value * chosen.factor;
 
     Task task;

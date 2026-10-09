@@ -17,6 +17,7 @@ set(GENERATOR_CORE_SOURCES
     task_generator.h task_generator.cpp
     fragment_algebra.h fragment_algebra.cpp
     number_format.h number_format.cpp
+    random_utils.h random_utils.cpp
     arithmetic_unit.h arithmetic_unit.cpp
     addition_subtraction_generator.h addition_subtraction_generator.cpp
     percent_mult_div_generator.h percent_mult_div_generator.cpp

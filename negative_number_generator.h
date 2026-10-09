@@ -11,7 +11,7 @@ namespace NegativeNumberCriteria {
 // und kNegativeResultsMinLevel in arithmetic_unit.cpp - ab hier duerfen Ergebnisse
 // ueberhaupt negativ sein, deshalb macht eine EIGENE Uebung fuer Vorzeichenregeln
 // erst ab demselben Level Sinn.
-inline constexpr DifficultyLevel MinLevel = 31;   // Kl.6
+inline constexpr DifficultyLevel MinLevel = classToLevel(6);   // F16: classToLevel(6) statt der nackten Zahl 31
 }
 
 // Eigene Uebung fuer Vorzeichenregeln (Kl.6/7) - nicht nur "Ergebnis darf negativ

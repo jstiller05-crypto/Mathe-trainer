@@ -1,5 +1,5 @@
 #include "percent_mult_div_generator.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <QDebug>
 #include <QVector>
 
@@ -24,8 +24,8 @@ static int mentalMathMultiplicationMaxFactor()
 Task generateMultiplicationTask(DifficultyLevel level, bool mentalMath)
 {
     int maxFactor = mentalMath ? mentalMathMultiplicationMaxFactor() : maxFactorForLevel(level) * 3;
-    int a = rand() % maxFactor + 1;
-    int b = rand() % maxFactor + 1;
+    int a = randomInt(1, maxFactor);
+    int b = randomInt(1, maxFactor);
 
     Task task;
     task.ruleName = "Multiplication";
@@ -48,8 +48,8 @@ TaskFragment generateMultiplicationFragment(DifficultyLevel level, bool mentalMa
 {
     Q_UNUSED(level);
     int maxFactor = mentalMath ? mentalMathMultiplicationMaxFactor() : 25;
-    int a = rand() % maxFactor + 1;
-    int b = rand() % maxFactor + 1;
+    int a = randomInt(1, maxFactor);
+    int b = randomInt(1, maxFactor);
 
     TaskFragment fragment;
     fragment.value = a * b;
@@ -61,8 +61,8 @@ TaskFragment generateMultiplicationFragment(DifficultyLevel level, bool mentalMa
 Task generateDivisionTask(DifficultyLevel level, bool mentalMath)
 {
     int maxFactor = mentalMath ? maxFactorForLevel(level) : maxFactorForLevel(level) * 3;
-    int divisor = rand() % 10 + 2;
-    int quotient = rand() % maxFactor + 1;
+    int divisor = randomInt(2, 11);
+    int quotient = randomInt(1, maxFactor);
     int dividend = divisor * quotient;
 
     Task task;
@@ -86,8 +86,8 @@ TaskFragment generateDivisionFragment(DifficultyLevel level, bool mentalMath)
 {
     Q_UNUSED(level);
     int maxFactor = mentalMath ? 10 : 20;
-    int divisor = rand() % 8 + 2;
-    int quotient = rand() % maxFactor + 1;
+    int divisor = randomInt(2, 9);
+    int quotient = randomInt(1, maxFactor);
     int dividend = divisor * quotient;
 
     TaskFragment fragment;
@@ -107,17 +107,18 @@ Task generatePercentTask(DifficultyLevel level, bool mentalMath)
         // generator-bench: vorher war die Duplikate-Rate bei Kl.3 UND Kl.10 identisch 82%,
         // weil level hier komplett ignoriert wurde).
         QVector<int> percentSteps = { 5, 10, 20, 25, 50, 75 };
-        if (level >= 31) percentSteps += QVector<int>{ 15, 30, 40, 60, 80, 90 };   // ab Kl.6
-        if (level >= 51) percentSteps += QVector<int>{ 12, 35, 45, 65, 85 };       // ab Kl.8
-        percent = percentSteps[rand() % percentSteps.size()];
+        // F16: classToLevel(6)/classToLevel(8) statt der frueheren nackten Zahlen 31/51.
+        if (level >= classToLevel(6)) percentSteps += QVector<int>{ 15, 30, 40, 60, 80, 90 };
+        if (level >= classToLevel(8)) percentSteps += QVector<int>{ 12, 35, 45, 65, 85 };
+        percent = percentSteps[randomInt(0, percentSteps.size() - 1)];
 
         // Grundwert waechst mit dem Level (bleibt durch den festen Faktor 10 weiterhin
         // eine "runde" Zahl fuers Kopfrechnen), analog zu maxFactorForLevel() oben.
         int maxBaseSteps = 20 + level / 2;
-        base = (rand() % maxBaseSteps + 1) * 10;
+        base = randomInt(1, maxBaseSteps) * 10;
     } else {
-        percent = rand() % 99 + 1;
-        base = rand() % 990 + 10;
+        percent = randomInt(1, 99);
+        base = randomInt(10, 999);
     }
     double result = (percent * base) / 100.0;
 

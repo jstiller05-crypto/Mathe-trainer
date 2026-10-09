@@ -1,6 +1,6 @@
 #include "decimal_generator.h"
 #include "number_format.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <cmath>
 #include <algorithm>
 #include <QDebug>
@@ -26,7 +26,13 @@ static double randomDecimalValue(int maxWhole, int decimals = 2)
     int scale = 1;
     for (int i = 0; i < decimals; ++i) scale *= 10;
 
-    int wholeScaled = rand() % (maxWhole * scale) + 1;
+    // F17: vorher "rand() % (maxWhole * scale) + 1" - unter Windows ist RAND_MAX nur
+    // 32767, bei decimals=4 (scale=10000, siehe "Runde ..."-Aufgaben) war der Divisor
+    // also schon ab maxWhole >= 4 GROESSER als RAND_MAX, wodurch rand()%N nie Werte
+    // ueber RAND_MAX lieferte - der Wertebereich blieb praktisch immer bei maximal
+    // 3,2767. randomInt() (random_utils.h, auf QRandomGenerator basierend) ist nicht an
+    // RAND_MAX gebunden und deckt den vollen Bereich ab.
+    int wholeScaled = randomInt(1, maxWhole * scale);
     return wholeScaled / static_cast<double>(scale);
 }
 
@@ -51,7 +57,7 @@ static Task buildTaskFromValue(const QString &promptText, double value, bool men
 Task generateDecimalTask(DifficultyLevel level, bool mentalMath)
 {
     int maxOperand = maxOperandForLevel(level, mentalMath);
-    int form = rand() % 4;
+    int form = randomInt(0, 3);
 
     QString promptText;
     double value;
@@ -79,7 +85,7 @@ Task generateDecimalTask(DifficultyLevel level, bool mentalMath)
         // Multiplikation: Dezimalzahl × ganze Zahl, damit das Ergebnis kontrollierbar
         // bleibt: "2,5 × 4 ="
         double a = randomDecimalValue(maxOperand);
-        int b = rand() % maxOperand + 1;
+        int b = randomInt(1, maxOperand);
         value = a * b;
         promptText = QString("%1 × %2 =").arg(formatGermanDecimal(a)).arg(b);
         break;

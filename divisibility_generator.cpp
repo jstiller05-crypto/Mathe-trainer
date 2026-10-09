@@ -1,5 +1,5 @@
 #include "divisibility_generator.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <algorithm>
 #include <QDebug>
 
@@ -76,10 +76,13 @@ Task generateDivisibilityTask(DifficultyLevel level, bool mentalMath)
     int maxOperand = maxOperandForLevel(level, mentalMath);
     // Mindestens 2 statt 1 - ggT/kgV mit 1 waere immer trivial (ggT(1,x)=1) und
     // wuerde die eigentliche Uebung (Primfaktoren/Teiler suchen) nicht ansprechen.
-    int a = rand() % maxOperand + 2;
-    int b = rand() % maxOperand + 2;
+    // F17/F23: reiner rand()->randomInt()-Austausch, Bereich bewusst UNVERAENDERT
+    // gelassen (inkl. des Off-by-one-Bugs F22 - maxOperand+1 statt maxOperand als
+    // tatsaechliche Obergrenze) - F22 wird erst in Phase 3 behoben.
+    int a = randomInt(2, maxOperand + 1);
+    int b = randomInt(2, maxOperand + 1);
 
-    bool useLcm = (rand() % 2 == 0);
+    bool useLcm = randomChance(50);
     QString display = useLcm ? QString("kgV(%1, %2)").arg(a).arg(b)
                                : QString("ggT(%1, %2)").arg(a).arg(b);
     int value = useLcm ? computeLcm(a, b) : computeGcd(a, b);
@@ -90,10 +93,10 @@ Task generateDivisibilityTask(DifficultyLevel level, bool mentalMath)
 TaskFragment generateDivisibilityFragment(DifficultyLevel level, bool mentalMath)
 {
     int maxOperand = maxOperandForLevel(level, mentalMath);
-    int a = rand() % maxOperand + 2;
-    int b = rand() % maxOperand + 2;
+    int a = randomInt(2, maxOperand + 1);   // F17/F23: siehe Kommentar in generateDivisibilityTask()
+    int b = randomInt(2, maxOperand + 1);
 
-    bool useLcm = (rand() % 2 == 0);
+    bool useLcm = randomChance(50);
 
     TaskFragment fragment;
     fragment.value = useLcm ? computeLcm(a, b) : computeGcd(a, b);

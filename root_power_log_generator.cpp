@@ -1,5 +1,5 @@
 #include "root_power_log_generator.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <cmath>
 #include <QDebug>
 
@@ -17,8 +17,8 @@ static TaskFragment buildPowerFragment(DifficultyLevel level, bool mentalMath)
 {
     bool fullRangeUnlocked = level >= RootPowerLogCriteria::PowerFullMinLevel;
 
-    int base = mentalMath ? (rand() % 8 + 2) : (rand() % 12 + 2);
-    int exponent = fullRangeUnlocked ? (mentalMath ? (rand() % 2 + 2) : (rand() % 3 + 2)) : 2;
+    int base = mentalMath ? randomInt(2, 9) : randomInt(2, 13);
+    int exponent = fullRangeUnlocked ? (mentalMath ? randomInt(2, 3) : randomInt(2, 4)) : 2;
 
     TaskFragment fragment;
     fragment.value = std::pow(base, exponent);
@@ -59,12 +59,12 @@ static TaskFragment buildRootFragment(DifficultyLevel level, bool mentalMath)
     TaskFragment fragment;
 
     if (mentalMath) {
-        int root = rand() % 10 + 2;
+        int root = randomInt(2, 11);
         int operand = root * root;
         fragment.value = root;
         fragment.display = QString("√%1").arg(operand);
     } else {
-        int operand = rand() % 90 + 10;
+        int operand = randomInt(10, 99);
         fragment.value = std::sqrt(operand);   // voller double-Wert, NICHT gerundet (Punkt 3)
         fragment.display = QString("√%1").arg(operand);
     }
@@ -108,12 +108,12 @@ static TaskFragment buildLogFragment(DifficultyLevel level, bool mentalMath)
     TaskFragment fragment;
 
     if (mentalMath) {
-        int exponent = rand() % 4 + 1;
+        int exponent = randomInt(1, 4);
         int operand = static_cast<int>(std::pow(10, exponent));
         fragment.value = exponent;
         fragment.display = QString("log(%1)").arg(operand);
     } else {
-        int operand = rand() % 9900 + 100;
+        int operand = randomInt(100, 9999);
         fragment.value = std::log10(operand);   // voller double-Wert, NICHT gerundet (Punkt 3)
         fragment.display = QString("log(%1)").arg(operand);
     }

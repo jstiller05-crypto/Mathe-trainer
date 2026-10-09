@@ -1,6 +1,6 @@
 #include "geometry_unit.h"
 #include "rectangle_generator.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <QDebug>
 
 // Waehlt die passende Speiche fuer eine Unterkategorie - aktuell nur "Rechteck",
@@ -32,7 +32,7 @@ Task generateGeometryTask(DifficultyLevel level, const QStringList &activeSubcat
         // Noch keine einzige Unterkategorie fuer dieses Level verfuegbar (Level unter
         // RectangleCriteria::MinLevel) - in diesem fruehen Ausbaustadium mit nur EINEM
         // Generator faellt das trotzdem auf "Rechteck" zurueck, statt mit einer leeren
-        // Liste abzustuerzen (subcategories[rand() % 0] waere undefiniertes Verhalten).
+        // Liste abzustuerzen (randomInt(0, -1) waere ein ungueltiger Bereich).
         // Sobald es mehrere Formen gibt, sollte diese Stelle ueberdacht werden.
         qWarning() << "[GeometryUnit] Keine Unterkategorie fuer Level" << level << "verfuegbar - Fallback auf Rechteck";
         subcategories << "Rechteck";
@@ -40,7 +40,7 @@ Task generateGeometryTask(DifficultyLevel level, const QStringList &activeSubcat
 
     qDebug() << "[GeometryUnit] Aktive Unterkategorien:" << subcategories << "| Modus:" << static_cast<int>(mode);
 
-    QString chosen = subcategories[rand() % subcategories.size()];
+    QString chosen = subcategories[randomInt(0, subcategories.size() - 1)];
     qDebug() << "[GeometryUnit] Gewaehlte Form:" << chosen;
 
     Task task = standaloneForSubcategory(chosen, level, smallNumbers);

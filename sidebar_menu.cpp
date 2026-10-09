@@ -128,7 +128,13 @@ void SidebarMenu::buildCategoryTree()
               { "Bruchrechnung", false }, { "Finanzrechnung", false }
           }, true },
         { "Trigonometrie", { {"Kopfrechenaufgaben",false}, {"Winkelberechnung",false}, {"Seitenberechnung",false}, {"Dreiecksberechnung",false}, {"Sinus-/Kosinussatz",false}, {"Einheitskreis",false} }, false },
-        { "Geometrie", { {"Kopfrechenaufgaben",false}, {"Volumenberechnung",false}, {"Flächeninhalt",false}, {"Mantel/Oberfläche",false}, {"Umfang",false}, {"Ähnlichkeit/Maßstab",false}, {"Koordinatengeometrie",false} }, false },
+        { "Geometrie", {
+              { "Rechteck", true },
+              // Platzhalter - Generatoren fehlen noch, Buttons bleiben sichtbar+deaktiviert
+              // (gleiches Muster wie "Bruchrechnung"/"Finanzrechnung" bei Arithmetik).
+              {"Kopfrechenaufgaben",false}, {"Volumenberechnung",false}, {"Flächeninhalt",false},
+              {"Mantel/Oberfläche",false}, {"Umfang",false}, {"Ähnlichkeit/Maßstab",false}, {"Koordinatengeometrie",false}
+          }, true },
         { "Algebra", { {"Lineare Funktionen",false}, {"Parabeln",false}, {"Exponentielle Funktionen",false}, {"Gleichungen lösen",false}, {"Ungleichungen",false}, {"Lineare Gleichungssysteme",false} }, false },
         { "Stochastik", { {"Wahrscheinlichkeit",false}, {"Bedingte Wahrscheinlichkeit",false}, {"Kombinatorik",false}, {"Statistische Kennwerte",false} }, false },
         { "Analysis", { {"Ableitungen",false}, {"Integrale",false} }, false }

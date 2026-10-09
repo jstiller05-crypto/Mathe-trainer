@@ -7,7 +7,7 @@
 
 // Kriterium lokal hier dokumentiert (wie bei den anderen Generatoren).
 namespace DecimalCriteria {
-inline constexpr DifficultyLevel MinLevel = 21;  // Kl.5
+inline constexpr DifficultyLevel MinLevel = classToLevel(5);  // F16: classToLevel(5) statt der nackten Zahl 21
 }
 
 // Rechnen mit Dezimalbruechen - MIT echter Komma-Anzeige im Aufgabentext selbst

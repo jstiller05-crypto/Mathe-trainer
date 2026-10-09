@@ -1,6 +1,6 @@
 #include "term_generator.h"
 #include "fragment_algebra.h"
-#include <cstdlib>
+#include "random_utils.h"
 #include <QDebug>
 
 // Eigene, bewusst einfache Umrechnung (wie jeder Generator, siehe CLAUDE.md) - waechst
@@ -44,9 +44,9 @@ static Task buildTaskFromTerm(const TaskFragment &term, bool mentalMath)
 TaskFragment generateTermFragment(DifficultyLevel level, bool mentalMath)
 {
     int maxOperand = maxOperandForLevel(level, mentalMath);
-    int a = rand() % maxOperand + 1;
-    int b = rand() % maxOperand + 1;
-    QString op = (rand() % 2 == 0) ? "+" : "-";
+    int a = randomInt(1, maxOperand);
+    int b = randomInt(1, maxOperand);
+    QString op = randomChance(50) ? "+" : "-";
 
     TaskFragment inner = combineWithOperator(makeNumberFragment(a), makeNumberFragment(b), op);
 
@@ -63,14 +63,14 @@ Task generateTermTask(DifficultyLevel level, bool mentalMath)
     bool divisionAllowed = (level >= TermCriteria::DivisionMinLevel);
     bool nestedAllowed = (level >= TermCriteria::NestedMinLevel);
 
-    QString pointOp = (divisionAllowed && rand() % 2 == 0) ? "÷" : "×";
-    QString lineOp = (rand() % 2 == 0) ? "+" : "-";
+    QString pointOp = (divisionAllowed && randomChance(50)) ? "÷" : "×";
+    QString lineOp = randomChance(50) ? "+" : "-";
     // Reihenfolge der Verknuepfung und Seite zufaellig waehlen - zusammen mit
     // combineWithOperator() (Schritt 2), das die Klammern automatisch nach
     // Bindungsstaerke setzt, ergeben sich daraus alle Grundformen aus der Aufgabe:
     // "2 × (3 + 4)", "20 - 3 × 4", "(12 + 8) ÷ 5", "3 × 4 - 7" ...
-    bool pointPairFirst = (rand() % 2 == 0);
-    bool innerOnLeft = (rand() % 2 == 0);
+    bool pointPairFirst = randomChance(50);
+    bool innerOnLeft = randomChance(50);
 
     TaskFragment fragA;
     TaskFragment fragB;
@@ -81,18 +81,18 @@ Task generateTermTask(DifficultyLevel level, bool mentalMath)
         // Ergebnis her gedacht (Divisor + Quotient waehlen), damit sie garantiert
         // glatt aufgeht, statt hinterher zu pruefen und neu zu wuerfeln.
         if (pointOp == "÷") {
-            int divisor = rand() % 9 + 2;
-            int quotient = rand() % maxOperand + 1;
+            int divisor = randomInt(2, 10);
+            int quotient = randomInt(1, maxOperand);
             fragA = makeNumberFragment(divisor * quotient);
             fragB = makeNumberFragment(divisor);
         } else {
-            fragA = makeNumberFragment(rand() % maxOperand + 1);
+            fragA = makeNumberFragment(randomInt(1, maxOperand));
             // Genestete Klammer (z.B. "3 × (4 + 2) − 7") nur bei × moeglich - ihr
             // Wert waere als Divisor/Dividend sonst nicht kontrollierbar.
-            fragB = (nestedAllowed && rand() % 2 == 0) ? generateTermFragment(level, mentalMath)
-                                                         : makeNumberFragment(rand() % maxOperand + 1);
+            fragB = (nestedAllowed && randomChance(50)) ? generateTermFragment(level, mentalMath)
+                                                          : makeNumberFragment(randomInt(1, maxOperand));
         }
-        fragC = makeNumberFragment(rand() % maxOperand + 1);
+        fragC = makeNumberFragment(randomInt(1, maxOperand));
 
         TaskFragment inner = combineWithOperator(fragA, fragB, pointOp);
         TaskFragment term = innerOnLeft ? combineWithOperator(inner, fragC, lineOp)
@@ -106,10 +106,10 @@ Task generateTermTask(DifficultyLevel level, bool mentalMath)
         // a + b = c*q so in a und b splitten, dass die Summe exakt c*q ergibt - die
         // Division geht dadurch auch in dieser Reihenfolge garantiert glatt auf
         // (deshalb hier ausnahmsweise IMMER "+" statt des gewuerfelten lineOp).
-        int divisor = rand() % 9 + 2;
-        int quotient = rand() % maxOperand + 1;
+        int divisor = randomInt(2, 10);
+        int quotient = randomInt(1, maxOperand);
         int sum = divisor * quotient;
-        int a = rand() % (sum - 1) + 1;
+        int a = randomInt(1, sum - 1);
         fragA = makeNumberFragment(a);
         fragB = makeNumberFragment(sum - a);
         fragC = makeNumberFragment(divisor);
@@ -120,10 +120,10 @@ Task generateTermTask(DifficultyLevel level, bool mentalMath)
         return buildTaskFromTerm(term, mentalMath);
     }
 
-    fragA = makeNumberFragment(rand() % maxOperand + 1);
-    fragB = (nestedAllowed && rand() % 2 == 0) ? generateTermFragment(level, mentalMath)
-                                                 : makeNumberFragment(rand() % maxOperand + 1);
-    fragC = makeNumberFragment(rand() % maxOperand + 1);
+    fragA = makeNumberFragment(randomInt(1, maxOperand));
+    fragB = (nestedAllowed && randomChance(50)) ? generateTermFragment(level, mentalMath)
+                                                  : makeNumberFragment(randomInt(1, maxOperand));
+    fragC = makeNumberFragment(randomInt(1, maxOperand));
 
     TaskFragment inner = combineWithOperator(fragA, fragB, lineOp);
     TaskFragment term = innerOnLeft ? combineWithOperator(inner, fragC, pointOp)

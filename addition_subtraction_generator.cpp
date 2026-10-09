@@ -1,5 +1,6 @@
 #include "addition_subtraction_generator.h"
-#include <cstdlib>
+#include "negative_number_generator.h"
+#include "random_utils.h"
 #include <algorithm>
 #include <QDebug>
 
@@ -9,25 +10,35 @@ static int maxNumberForLevel(DifficultyLevel level)
 }
 
 // Kopfrechnen-Variante: nutzt dieselbe Formel wie maxNumberForLevel(), aber der Level-Input
-// wird ab Kl.6 (Level 31) gedeckelt -> danach ein Plateau statt weiterem linearen Wachstum.
-// Ohne diesen Deckel wuerde der Zahlenraum bei Kl.10 (Level 71) auf 1440 pro Operand steigen -
-// das ist nicht mehr "im Kopf loesbar" (siehe generator-bench: Kopfrechnen-Addition ging bis
-// Ø 955,79 / Max 2680 hoch). Mit dem Deckel bleibt der Zahlenraum ab Kl.6 konstant bei dem Wert,
-// den Kl.6 selbst schon hatte.
+// wird ab Kl.6 gedeckelt -> danach ein Plateau statt weiterem linearen Wachstum. Ohne diesen
+// Deckel wuerde der Zahlenraum bei Kl.10 auf ein Mehrfaches steigen - das ist nicht mehr
+// "im Kopf loesbar" (siehe generator-bench: Kopfrechnen-Addition ging bis Ø 955,79 / Max 2680
+// hoch). Mit dem Deckel bleibt der Zahlenraum ab Kl.6 konstant bei dem Wert, den Kl.6 selbst
+// schon hatte. F16: classToLevel(6) statt der frueheren nackten Zahl 31, damit diese Schwelle
+// automatisch der zentralen Klasse->Level-Umrechnung (difficulty.h) folgt.
 static int mentalMathMaxNumberForLevel(DifficultyLevel level)
 {
-    constexpr DifficultyLevel PlateauLevel = 31;   // = classToLevel(6)
-    return maxNumberForLevel(std::min(level, PlateauLevel));
+    DifficultyLevel plateauLevel = classToLevel(6);
+    return maxNumberForLevel(std::min(level, plateauLevel));
 }
 
+// F16: nutzt jetzt NegativeNumberCriteria::MinLevel (negative_number_generator.h) statt
+// einer eigenen Kopie derselben Schwelle - "ab hier sind negative Ergebnisse erlaubt" soll
+// nur noch an EINER Stelle definiert sein (siehe auch kNegativeResultsMinLevel in
+// arithmetic_unit.cpp, das jetzt ebenfalls dorthin verweist).
 static bool negativeResultsAllowed(DifficultyLevel level)
 {
-    return level >= 31;
+    return level >= NegativeNumberCriteria::MinLevel;
 }
 
+// F17/F23: generateMentalMathFriendlyNumber() nutzte vorher rand()/RAND_MAX direkt - unter
+// Windows ist RAND_MAX nur 32767 (F17), und der Quotient konnte genau 1.0 ergeben, wodurch
+// rawValue einen Schritt ueber maxValue landen konnte (F23). randomUnitInterval() (siehe
+// random_utils.h) behebt beides: QRandomGenerator ist nicht an RAND_MAX gebunden und liefert
+// garantiert einen Wert < 1.0.
 static int generateMentalMathFriendlyNumber(int maxValue)
 {
-    double randomFraction = static_cast<double>(rand()) / RAND_MAX;
+    double randomFraction = randomUnitInterval();
     double biasedFraction = randomFraction * randomFraction;
     int rawValue = static_cast<int>(biasedFraction * maxValue) + 1;
 
@@ -38,7 +49,7 @@ static int generateMentalMathFriendlyNumber(int maxValue)
 
 static int generateOperand(int maxValue, bool mentalMath)
 {
-    return mentalMath ? generateMentalMathFriendlyNumber(maxValue) : (rand() % maxValue + 1);
+    return mentalMath ? generateMentalMathFriendlyNumber(maxValue) : randomInt(1, maxValue);
 }
 
 Task generateAdditionTask(DifficultyLevel level, bool mentalMath)
@@ -83,7 +94,7 @@ Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
     int first = generateOperand(maxNumber, mentalMath);
 
     int upperBound = negativeResultsAllowed(level) ? maxNumber : first;
-    int second = mentalMath ? generateMentalMathFriendlyNumber(upperBound) : (rand() % (upperBound + 1));
+    int second = mentalMath ? generateMentalMathFriendlyNumber(upperBound) : randomInt(0, upperBound);
 
     int result = first - second;
 
@@ -98,7 +109,7 @@ Task generateSubtractionTask(DifficultyLevel level, bool mentalMath)
     task.writtenCalculation.operatorSymbol = "-";
     task.writtenCalculation.expression = task.promptText;
     task.writtenCalculation.answerDigitCount = answerStr.length();
-    // Ein Ziffern-Kaestchen fasst nur 1 Zeichen - bei negativem Ergebnis (ab Level 31 erlaubt)
+    // Ein Ziffern-Kaestchen fasst nur 1 Zeichen - bei negativem Ergebnis (ab NegativeNumberCriteria::MinLevel erlaubt)
     // gibt es deshalb EIN zusammenhaengendes Feld statt einzelner Kaestchen fuers Vorzeichen.
     task.writtenCalculation.freeformAnswer = answerStr.contains('-');
     task.writtenCalculation.mode = mentalMath ? WrittenCalculation::DisplayMode::SingleLine : WrittenCalculation::DisplayMode::Stacked;

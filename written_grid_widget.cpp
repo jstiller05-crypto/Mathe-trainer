@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QKeyEvent>
 #include <QApplication>
+#include <QDebug>
 #include <algorithm>
 
 static constexpr int PAGE_COLUMNS = 32;
@@ -32,6 +33,7 @@ void WrittenGridWidget::setInkColor(const QColor &color)
 void WrittenGridWidget::showCalculation(const WrittenCalculation &calc)
 {
     worksheetTasks.clear();   // Aufgabenblatt-Ansicht beenden, falls aktiv
+    geometryModel = GeometryModel();   // Geometrie-Ansicht beenden, falls aktiv (leeres Modell = Modus aus)
     calculation = calc;
     solutionText.clear();   // Rueckmeldung der VORHERIGEN Aufgabe darf hier nicht mehr stehen
 
@@ -85,8 +87,47 @@ void WrittenGridWidget::showWorksheet(const QVector<Task> &tasks)
     for (QLineEdit *field : answerFields) field->deleteLater();
     answerFields.clear();
     totalDigitColumns = 0;   // deaktiviert die normale Einzel-Aufgaben-Zeichnung
+    geometryModel = GeometryModel();   // Geometrie-Ansicht beenden, falls aktiv
 
     worksheetTasks = tasks;
+    update();
+}
+
+void WrittenGridWidget::showModel(const GeometryModel &newModel)
+{
+    worksheetTasks.clear();               // andere Anzeige-Modi beenden, wie bei showCalculation()/showWorksheet()
+    totalDigitColumns = 0;
+    calculation = WrittenCalculation();   // alte Rechnung darf hier nicht mehr nachwirken
+    solutionText.clear();
+
+    geometryModel = newModel;
+
+    for (QLineEdit *field : answerFields) field->deleteLater();
+    answerFields.clear();
+
+    // Fuer jedes GESUCHTE Label (answerIndex >= 0) ein echtes Eingabefeld anlegen - die
+    // Reihenfolge folgt geometryModel.labels, damit layoutGeometryAnswerFields() (gleiche
+    // Iteration, gleiche Bedingung) die Felder wieder eindeutig zuordnen kann.
+    // Validierung/Auswertung der Eingabe ist HIER bewusst noch nicht Teil des Widgets
+    // (siehe written_grid_widget.h) - das Feld muss in diesem Schritt nur sichtbar an der
+    // richtigen Stelle sitzen.
+    for (const GeometryLabel &label : geometryModel.labels) {
+        if (label.answerIndex < 0) continue;
+
+        QLineEdit *field = new QLineEdit(this);
+        field->setObjectName("geometryAnswerField");
+        field->setAlignment(Qt::AlignCenter);
+        field->setFrame(false);
+        field->installEventFilter(this);   // Enter loest wie bei den Ziffern-Kaestchen answerSubmitted() aus
+        answerFields.append(field);
+        field->show();
+    }
+
+    qDebug() << "[WrittenGrid] Geometrie-Modell gesetzt - Punkte:" << geometryModel.points.size()
+             << "| Kanten:" << geometryModel.edges.size() << "| Labels:" << geometryModel.labels.size()
+             << "| Antwortfelder:" << answerFields.size();
+
+    recomputeLayout();
     update();
 }
 
@@ -119,6 +160,14 @@ void WrittenGridWidget::recomputeLayout()
                      ? static_cast<double>(width()) / taskColumnsInSquares
                      : static_cast<double>(width()) / PAGE_COLUMNS;
     pageRows = static_cast<int>(height() / squareSize);
+
+    // Geometrie-Modus hat sein EIGENES Layout (freie Bounding-Box statt Karo-Raster-
+    // Spalten/Zeilen) - deshalb hier abzweigen, bevor die Ziffern-Kaestchen-Logik unten
+    // greift (die fuer totalDigitColumns==0 sowieso nichts zu tun haette).
+    if (!geometryModel.points.isEmpty()) {
+        recomputeGeometryLayout();
+        return;
+    }
 
     if (totalDigitColumns == 0) return;
 
@@ -193,6 +242,139 @@ void WrittenGridWidget::placeFreeformField(int startCol, int rowIndex, double ce
                                        .arg(static_cast<int>(cellHeight * 0.55)).arg(numberFontFamily));
 }
 
+// Berechnet Skalierung + Verschiebung so, dass die Bounding-Box aller Punkte/Labels aus
+// geometryModel SEITENVERHAELTNISTREU (kein Verzerren) in die verfuegbare Flaeche
+// (Widget minus Rand) passt - uebernommen aus der urspruenglich eigenstaendigen
+// GeometryModelWidget::recomputeLayout() (siehe showModel()-Kommentar in written_grid_widget.h).
+void WrittenGridWidget::recomputeGeometryLayout()
+{
+    double minX = geometryModel.points.first().x();
+    double maxX = minX;
+    double minY = geometryModel.points.first().y();
+    double maxY = minY;
+
+    auto expand = [&](const QPointF &p) {
+        minX = std::min(minX, p.x());
+        maxX = std::max(maxX, p.x());
+        minY = std::min(minY, p.y());
+        maxY = std::max(maxY, p.y());
+    };
+    for (const QPointF &p : geometryModel.points) expand(p);
+    // Auch Label-Positionen einbeziehen - bei rectangle_generator.cpp liegen die
+    // Antwort-Labels (Flaeche/Umfang) z.B. bewusst UNTERHALB des Rechtecks, also
+    // ausserhalb der reinen Punkte-Huelle.
+    for (const GeometryLabel &label : geometryModel.labels) expand(label.position);
+
+    // std::max(..., 0.001) sichert gegen Division durch 0 ab, falls ein (entartetes)
+    // Modell nur einen einzigen Punkt haette.
+    double modelWidth = std::max(maxX - minX, 0.001);
+    double modelHeight = std::max(maxY - minY, 0.001);
+
+    constexpr double Padding = 40.0;   // Pixel Rand rundherum, Linien/Labels sollen nicht am Widget-Rand kleben
+    double availableWidth = std::max(static_cast<double>(width()) - 2 * Padding, 1.0);
+    double availableHeight = std::max(static_cast<double>(height()) - 2 * Padding, 1.0);
+
+    // Der KLEINERE der beiden moeglichen Skalierungsfaktoren gewinnt - sonst wuerde
+    // z.B. ein schmales, hohes Modell in einem breiten Widget in die Breite verzerrt.
+    geometryScale = std::min(availableWidth / modelWidth, availableHeight / modelHeight);
+
+    // Zentrieren: ueberschuessiger Platz (auf der Achse, die NICHT den Skalierungsfaktor
+    // bestimmt hat) wird je zur Haelfte links/rechts bzw. oben/unten verteilt.
+    double scaledWidth = modelWidth * geometryScale;
+    double scaledHeight = modelHeight * geometryScale;
+    geometryOffsetX = Padding + (availableWidth - scaledWidth) / 2.0;
+    geometryOffsetY = Padding + (availableHeight - scaledHeight) / 2.0;
+    geometryMinX = minX;
+    geometryMinY = minY;
+
+    qDebug() << "[WrittenGrid] Geometrie-Layout neu berechnet - Skalierungsfaktor:" << geometryScale
+             << "| Modellgroesse:" << modelWidth << "x" << modelHeight
+             << "| verfuegbare Flaeche:" << availableWidth << "x" << availableHeight;
+
+    layoutGeometryAnswerFields();
+}
+
+QPointF WrittenGridWidget::mapModelToWidget(const QPointF &modelPoint) const
+{
+    // Ursprung des Modells (geometryMinX/geometryMinY) auf (geometryOffsetX,
+    // geometryOffsetY) verschieben, dann mit dem Faktor aus recomputeGeometryLayout() skalieren.
+    return QPointF(geometryOffsetX + (modelPoint.x() - geometryMinX) * geometryScale,
+                   geometryOffsetY + (modelPoint.y() - geometryMinY) * geometryScale);
+}
+
+void WrittenGridWidget::layoutGeometryAnswerFields()
+{
+    if (answerFields.isEmpty()) return;
+
+    constexpr double FieldWidth = 70.0;
+    constexpr double FieldHeight = 30.0;
+
+    int fieldIndex = 0;
+    for (const GeometryLabel &label : geometryModel.labels) {
+        if (label.answerIndex < 0) continue;   // nur die GESUCHTEN Stellen bekommen ein Feld
+
+        QPointF center = mapModelToWidget(label.position);
+        QLineEdit *field = answerFields[fieldIndex];
+        field->setGeometry(static_cast<int>(center.x() - FieldWidth / 2.0),
+                            static_cast<int>(center.y() - FieldHeight / 2.0),
+                            static_cast<int>(FieldWidth), static_cast<int>(FieldHeight));
+        field->setStyleSheet(QString("font-family: \"%1\"; background: transparent; border: 1px solid %2;")
+                                  .arg(numberFontFamily, inkColor.name()));
+        fieldIndex++;
+    }
+}
+
+// Zeichnet Kanten als Linien sowie feste Labels sowie die kurzen Beschriftungen VOR den
+// (von layoutGeometryAnswerFields() bereits positionierten) Antwortfeldern - siehe
+// geometry_model.h fuer die Bedeutung von GeometryLabel::text bei answerIndex >= 0.
+void WrittenGridWidget::paintGeometryModel(QPainter &painter)
+{
+    painter.setPen(QPen(inkColor, 2));
+    for (const GeometryEdge &edge : geometryModel.edges) {
+        painter.drawLine(mapModelToWidget(geometryModel.points[edge.fromPointIndex]),
+                          mapModelToWidget(geometryModel.points[edge.toPointIndex]));
+    }
+
+    QFont font = numberFontFamily.isEmpty() ? this->font() : QFont(numberFontFamily);
+    font.setPointSizeF(13);
+    painter.setFont(font);
+    painter.setPen(QPen(inkColor, 1.5));
+
+    constexpr double FieldWidth = 70.0;
+    constexpr double CaptionWidth = 90.0;
+    constexpr double CaptionGap = 6.0;   // kleiner Abstand zwischen Beschriftung und Eingabefeld
+
+    int fixedLabelCount = 0;
+    int captionCount = 0;
+    for (const GeometryLabel &label : geometryModel.labels) {
+        QPointF center = mapModelToWidget(label.position);
+
+        if (label.answerIndex < 0) {
+            // Fester Wert: zentrierter Text an der Label-Position (z.B. Kantenmitte) -
+            // gleiche Grundidee wie die Kaestchen-Texte weiter unten in paintEvent().
+            QRectF labelRect(center.x() - 40, center.y() - 15, 80, 30);
+            painter.drawText(labelRect, Qt::AlignCenter, label.text);
+            fixedLabelCount++;
+            continue;
+        }
+
+        // Gesuchter Wert: das Eingabefeld selbst ist bereits als QLineEdit-Kindwidget an
+        // dieser Stelle positioniert (layoutGeometryAnswerFields()) - hier nur noch die
+        // optionale kurze Beschriftung ("Fläche =" o.ae.) LINKS davor zeichnen, falls
+        // label.text nicht leer ist.
+        if (!label.text.isEmpty()) {
+            QRectF captionRect(center.x() - FieldWidth / 2.0 - CaptionGap - CaptionWidth,
+                                center.y() - 15, CaptionWidth, 30);
+            painter.drawText(captionRect, Qt::AlignVCenter | Qt::AlignRight, label.text);
+            captionCount++;
+        }
+    }
+
+    qDebug() << "[WrittenGrid] Geometrie gezeichnet:" << geometryModel.edges.size() << "Kanten,"
+             << fixedLabelCount << "feste Labels," << captionCount << "Beschriftungen,"
+             << answerFields.size() << "Antwortfelder";
+}
+
 void WrittenGridWidget::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
@@ -245,6 +427,12 @@ void WrittenGridWidget::paintEvent(QPaintEvent *event)
 
             painter.drawText(cellR, Qt::AlignCenter, line);
         }
+        return;
+    }
+
+    // --- Geometrie-Modell (siehe showModel()) ---
+    if (!geometryModel.points.isEmpty()) {
+        paintGeometryModel(painter);
         return;
     }
 
@@ -330,6 +518,38 @@ QString WrittenGridWidget::currentAnswerText() const
     return result;
 }
 
+// Liefert die Antwort(en) des aktuell aktiven Modus - im Geometrie-Modus EINEN String
+// PRO GeometryLabel::answerIndex (nicht pro Erzeugungsreihenfolge der Felder, die
+// zufaellig uebereinstimmen KANN, aber nicht muss), im Rechen-Modus wie bisher EINEN
+// zusammengesetzten String fuer alle Ziffern-Kaestchen zusammen, hier nur in einen
+// 1-elementigen Vektor verpackt.
+QVector<QString> WrittenGridWidget::currentAnswerTexts() const
+{
+    if (!geometryModel.points.isEmpty()) {
+        QVector<QString> texts;
+        int fieldIndex = 0;
+
+        for (const GeometryLabel &label : geometryModel.labels) {
+            if (label.answerIndex < 0) continue;
+
+            // texts bedarfsgerecht vergroessern statt vorab eine feste Groesse
+            // anzunehmen - answerIndex muss nicht lueckenlos von 0 an in Label-
+            // Reihenfolge auftauchen.
+            if (texts.size() <= label.answerIndex) texts.resize(label.answerIndex + 1);
+
+            QLineEdit *field = answerFields[fieldIndex];
+            texts[label.answerIndex] = field->text();
+
+            qDebug() << "[WrittenGrid] Antwortfeld" << fieldIndex << "(Erzeugungsreihenfolge)"
+                     << "-> answerIndex" << label.answerIndex << "| Text:" << field->text();
+            fieldIndex++;
+        }
+        return texts;
+    }
+
+    return { currentAnswerText() };
+}
+
 void WrittenGridWidget::setInputEnabled(bool enabled)
 {
     for (QLineEdit *field : answerFields) field->setEnabled(enabled);
@@ -341,6 +561,32 @@ void WrittenGridWidget::showAnswerColor(bool correct)
     for (QLineEdit *field : answerFields) {
         field->setStyleSheet(field->styleSheet() + QString("border: 2px solid %1;").arg(color));
     }
+}
+
+// Plural-Pendant zu showAnswerColor() - im Geometrie-Modus bekommt JEDES Antwortfeld
+// seine EIGENE Farbe ueber correctness[label.answerIndex] (gleiche Index-Logik wie
+// currentAnswerTexts() oben), im Rechen-Modus unveraendert EINE Farbe fuer alle Kaestchen.
+void WrittenGridWidget::showAnswerColors(const QVector<bool> &correctness)
+{
+    if (!geometryModel.points.isEmpty()) {
+        int fieldIndex = 0;
+
+        for (const GeometryLabel &label : geometryModel.labels) {
+            if (label.answerIndex < 0) continue;
+
+            bool correct = (label.answerIndex < correctness.size()) && correctness[label.answerIndex];
+            QString color = correct ? kCorrectAnswerColor : kWrongAnswerColor;
+            QLineEdit *field = answerFields[fieldIndex];
+            field->setStyleSheet(field->styleSheet() + QString("border: 2px solid %1;").arg(color));
+
+            qDebug() << "[WrittenGrid] Farb-Feedback Antwortfeld" << fieldIndex << "-> answerIndex"
+                     << label.answerIndex << "| korrekt:" << correct;
+            fieldIndex++;
+        }
+        return;
+    }
+
+    showAnswerColor(!correctness.isEmpty() && correctness.first());
 }
 
 void WrittenGridWidget::showSolution(const QString &text, bool correct)
